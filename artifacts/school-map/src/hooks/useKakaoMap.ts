@@ -9,51 +9,52 @@ declare global {
 export function useKakaoMap() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [debugInfo, setDebugInfo] = useState<string>("");
+  const [debugInfo, setDebugInfo] = useState<string>("초기화 중...");
 
   useEffect(() => {
-    if (window.kakao && window.kakao.maps) {
-      setIsLoaded(true);
-      return;
-    }
+    let attempts = 0;
+    const maxAttempts = 60; // 12초 대기
 
-    const apiKey = import.meta.env.VITE_KAKAO_MAP_API_KEY;
-    if (!apiKey) {
-      setError("카카오맵 API 키(VITE_KAKAO_MAP_API_KEY)가 설정되지 않았습니다.");
-      return;
-    }
+    const tryInit = () => {
+      attempts++;
+      const kakaoExists = typeof window.kakao !== "undefined";
+      const mapsExists = kakaoExists && typeof window.kakao.maps !== "undefined";
 
-    const scriptSrc = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${apiKey}&autoload=false`;
+      setDebugInfo(`시도 ${attempts}/${maxAttempts} | kakao: ${kakaoExists} | maps: ${mapsExists}`);
 
-    const script = document.createElement("script");
-    script.src = scriptSrc;
-    script.async = true;
-    script.type = "text/javascript";
-
-    script.onload = () => {
-      try {
-        window.kakao.maps.load(() => {
+      if (mapsExists) {
+        try {
+          window.kakao.maps.load(() => {
+            setIsLoaded(true);
+            setDebugInfo("로드 완료");
+          });
+        } catch (e: any) {
+          // maps.load가 없으면 이미 로드된 것
           setIsLoaded(true);
-        });
-      } catch (e: any) {
-        setError(`SDK 초기화 실패: ${e?.message || String(e)}`);
-        setDebugInfo(`스크립트는 로드됐지만 초기화 실패. 키 타입 확인 필요 (JavaScript 키 사용 여부)`);
+          setDebugInfo("로드 완료 (즉시)");
+        }
+        return true;
       }
-    };
 
-    script.onerror = (e) => {
-      console.error("Kakao Maps script load error:", e);
-      setError("카카오맵 스크립트를 불러오지 못했습니다.");
-      setDebugInfo(`도메인: ${window.location.origin} | 키 앞 4자리: ${apiKey.substring(0, 4)}****`);
-    };
-
-    document.head.appendChild(script);
-
-    return () => {
-      if (document.head.contains(script)) {
-        document.head.removeChild(script);
+      if (attempts >= maxAttempts) {
+        const apiKey = import.meta.env.VITE_KAKAO_MAP_API_KEY;
+        setError("카카오맵 SDK 로드 시간 초과");
+        setDebugInfo(`키 앞 6자리: ${apiKey?.substring(0, 6) ?? "없음"} | kakao 객체: ${kakaoExists}`);
+        return true; // stop polling
       }
+
+      return false;
     };
+
+    if (tryInit()) return;
+
+    const timer = setInterval(() => {
+      if (tryInit()) {
+        clearInterval(timer);
+      }
+    }, 200);
+
+    return () => clearInterval(timer);
   }, []);
 
   return { isLoaded, error, debugInfo };
