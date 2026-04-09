@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "서울 종로구 학교 반경 지도"
+version = "1.0.0"
+id = "artifacts/school-map"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25475
+
+[services.development]
+run = "pnpm --filter @workspace/school-map run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/school-map", "run", "build" ]
+publicDir = "artifacts/school-map/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25475"
+BASE_PATH = "/"
