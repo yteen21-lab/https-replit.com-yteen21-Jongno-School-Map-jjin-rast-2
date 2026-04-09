@@ -8,7 +8,7 @@ import { School, SAMPLE_SCHOOLS } from "@/types/school";
 import { Upload, RefreshCw, School as SchoolIcon, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function MapPage() {
-  const { isLoaded, error: mapError } = useKakaoMap();
+  const { isLoaded, error: mapError, debugInfo } = useKakaoMap();
   const [schools, setSchools] = useState<School[]>(SAMPLE_SCHOOLS);
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
   const [showRadius50, setShowRadius50] = useState(true);
@@ -135,11 +135,15 @@ export default function MapPage() {
               <h2 className="font-bold text-slate-800 mb-2">지도를 불러올 수 없습니다</h2>
               <p className="text-sm text-slate-500 mb-4">{mapError}</p>
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-left text-xs text-amber-800 space-y-2">
-                <p className="font-semibold">도메인 등록 필요</p>
-                <p>카카오 개발자 콘솔 → 내 애플리케이션 → 플랫폼 → Web 플랫폼 등록에서 아래 도메인을 추가해주세요:</p>
+                <p className="font-semibold">확인 사항</p>
+                <p>1. 카카오 개발자 콘솔에서 <strong>JavaScript 키</strong>를 사용하고 있는지 확인하세요 (REST API 키 ❌)</p>
+                <p>2. 플랫폼 → Web → 사이트 도메인에 아래 주소가 등록되어 있는지 확인:</p>
                 <code className="block bg-amber-100 rounded px-2 py-1 text-amber-900 font-mono break-all">
                   {window.location.origin}
                 </code>
+                {debugInfo && (
+                  <p className="text-slate-500 mt-1">디버그: {debugInfo}</p>
+                )}
               </div>
             </div>
           </div>
