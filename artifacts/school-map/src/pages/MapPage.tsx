@@ -1,18 +1,25 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import LeafletMap from "@/components/LeafletMap";
 import ExcelUploader from "@/components/ExcelUploader";
 import SchoolList from "@/components/SchoolList";
 import Legend from "@/components/Legend";
-import { School, SAMPLE_SCHOOLS } from "@/types/school";
+import { School, TobaccoShop, SAMPLE_SCHOOLS, SAMPLE_TOBACCO_SHOPS, getTobaccoZone } from "@/types/school";
 import { RefreshCw, School as SchoolIcon, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function MapPage() {
   const [schools, setSchools] = useState<School[]>(SAMPLE_SCHOOLS);
+  const [tobaccoShops] = useState<TobaccoShop[]>(SAMPLE_TOBACCO_SHOPS);
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
   const [showRadius50, setShowRadius50] = useState(true);
   const [showRadius200, setShowRadius200] = useState(true);
+  const [showTobacco, setShowTobacco] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<"upload" | "list">("list");
+
+  const violationCount = useMemo(
+    () => tobaccoShops.filter((s) => getTobaccoZone(s, schools) !== "외부").length,
+    [tobaccoShops, schools]
+  );
 
   const handleSchoolsLoaded = useCallback((newSchools: School[]) => {
     setSchools(newSchools);
@@ -42,7 +49,14 @@ export default function MapPage() {
                 <SchoolIcon className="h-5 w-5 text-green-600" />
                 <h1 className="text-base font-bold text-slate-800">학교 반경 지도</h1>
               </div>
-              <p className="text-xs text-slate-400">서울시 종로구 · 초중고</p>
+              <p className="text-xs text-slate-400">서울시 전체 · 초중고</p>
+              {violationCount > 0 && (
+                <div className="mt-2 bg-red-50 border border-red-200 rounded-lg px-3 py-1.5">
+                  <p className="text-xs text-red-700 font-semibold">
+                    ⚠️ 학교 200m 이내 업소 {violationCount}곳
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="flex border-b border-slate-100">
@@ -72,7 +86,7 @@ export default function MapPage() {
               {activeTab === "list" ? (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs text-slate-500">학교를 클릭하면 지도에서 확인</p>
+                    <p className="text-xs text-slate-500">학교 클릭 시 지도 이동</p>
                     {schools !== SAMPLE_SCHOOLS && (
                       <button
                         onClick={handleReset}
@@ -124,24 +138,27 @@ export default function MapPage() {
       <main className="flex-1 relative">
         <LeafletMap
           schools={schools}
+          tobaccoShops={tobaccoShops}
           selectedSchool={selectedSchool}
           onSelectSchool={setSelectedSchool}
           showRadius50={showRadius50}
           showRadius200={showRadius200}
+          showTobacco={showTobacco}
         />
 
-        {/* Legend overlay */}
         <div className="absolute top-4 right-4 z-[1000]">
           <Legend
             schools={schools}
+            tobaccoShops={tobaccoShops}
             showRadius50={showRadius50}
             showRadius200={showRadius200}
+            showTobacco={showTobacco}
             onToggleRadius50={() => setShowRadius50((v) => !v)}
             onToggleRadius200={() => setShowRadius200((v) => !v)}
+            onToggleTobacco={() => setShowTobacco((v) => !v)}
           />
         </div>
 
-        {/* Selected school info */}
         {selectedSchool && (
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000]">
             <div className="bg-white rounded-xl shadow-lg px-5 py-3 flex items-center gap-3 min-w-[240px]">
@@ -149,7 +166,7 @@ export default function MapPage() {
               <div>
                 <p className="font-semibold text-slate-800 text-sm">{selectedSchool.name}</p>
                 <p className="text-xs text-slate-400">
-                  {selectedSchool.type} · {selectedSchool.lat.toFixed(5)}, {selectedSchool.lng.toFixed(5)}
+                  {selectedSchool.district && `${selectedSchool.district} · `}{selectedSchool.type}
                 </p>
               </div>
               <button

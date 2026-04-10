@@ -16,7 +16,7 @@ interface LeafletMapProps {
   showTobacco: boolean;
 }
 
-const JONGNO_CENTER: L.LatLngExpression = [37.5735, 126.979];
+const SEOUL_CENTER: L.LatLngExpression = [37.5665, 126.9780];
 
 export default function LeafletMap({
   schools,
@@ -46,8 +46,8 @@ export default function LeafletMap({
     if (!mapContainerRef.current) return;
 
     const map = L.map(mapContainerRef.current, {
-      center: JONGNO_CENTER,
-      zoom: 14,
+      center: SEOUL_CENTER,
+      zoom: 12,
       zoomControl: true,
     });
 
