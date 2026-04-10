@@ -5,14 +5,28 @@ interface SchoolListProps {
   schools: School[];
   selectedSchool: School | null;
   onSelectSchool: (school: School) => void;
+  query?: string;
 }
 
-export default function SchoolList({ schools, selectedSchool, onSelectSchool }: SchoolListProps) {
+function highlight(text: string, query: string) {
+  if (!query) return <>{text}</>;
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark className="bg-yellow-200 text-yellow-900 rounded-sm px-0.5">{text.slice(idx, idx + query.length)}</mark>
+      {text.slice(idx + query.length)}
+    </>
+  );
+}
+
+export default function SchoolList({ schools, selectedSchool, onSelectSchool, query = "" }: SchoolListProps) {
   if (schools.length === 0) {
     return (
       <div className="text-center py-6 text-slate-400 text-sm">
         <MapPin className="mx-auto h-8 w-8 mb-2 opacity-40" />
-        학교 데이터가 없습니다
+        {query ? `"${query}" 검색 결과 없음` : "학교 데이터가 없습니다"}
       </div>
     );
   }
@@ -35,13 +49,8 @@ export default function SchoolList({ schools, selectedSchool, onSelectSchool }: 
         return (
           <div key={type}>
             <div className="flex items-center gap-2 mb-1.5">
-              <span
-                className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"
-                style={{ backgroundColor: color }}
-              />
-              <span className="text-xs font-semibold text-slate-600">
-                {type} ({list.length})
-              </span>
+              <span className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+              <span className="text-xs font-semibold text-slate-600">{type} ({list.length})</span>
             </div>
             <ul className="space-y-1">
               {list.map((school) => {
@@ -59,15 +68,12 @@ export default function SchoolList({ schools, selectedSchool, onSelectSchool }: 
                       `}
                     >
                       <span className="flex items-center gap-2">
-                        <span
-                          className="inline-block w-2 h-2 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: color, opacity: isSelected ? 1 : 0.6 }}
-                        />
-                        {school.name}
+                        <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color, opacity: isSelected ? 1 : 0.6 }} />
+                        <span>{highlight(school.name, query)}</span>
                       </span>
-                      {isSelected && (
-                        <span className="text-xs text-blue-500 mt-0.5 block pl-4">
-                          {school.lat.toFixed(6)}, {school.lng.toFixed(6)}
+                      {school.district && (
+                        <span className="text-xs text-slate-400 mt-0.5 block pl-4">
+                          {highlight(school.district, query)}
                         </span>
                       )}
                     </button>
