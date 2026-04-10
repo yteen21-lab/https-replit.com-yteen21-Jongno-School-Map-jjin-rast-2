@@ -140,26 +140,30 @@ export default function LeafletMap({
     tobaccoShops.forEach((shop) => {
       const zone = getTobaccoZone(shop, schools);
       const color = TOBACCO_ZONE_COLORS[zone];
+      const shortName = shop.name.replace("무인전자담배 ", "").replace("무인담배 ", "");
 
       const icon = L.divIcon({
         className: "",
         html: `
-          <div style="display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;">
             <div style="
-              width:16px;height:16px;
-              background:${color};border:2px solid white;border-radius:3px;
-              box-shadow:0 2px 6px rgba(0,0,0,0.4);
+              width:28px;height:28px;
+              background:${color};border:3px solid white;
+              border-radius:6px;
+              box-shadow:0 3px 8px rgba(0,0,0,0.5);
               display:flex;align-items:center;justify-content:center;
-              font-size:9px;line-height:1;
+              font-size:14px;line-height:1;
             ">🚬</div>
             <div style="
-              background:white;border:1px solid ${color};border-radius:4px;
-              padding:2px 5px;font-size:10px;font-family:'Noto Sans KR',sans-serif;
-              font-weight:500;color:#1e293b;white-space:nowrap;
-              box-shadow:0 1px 4px rgba(0,0,0,0.15);
-            ">${shop.name.replace("무인담배 ", "")}</div>
+              background:${color};color:white;
+              border-radius:4px;
+              padding:2px 6px;font-size:10px;font-family:'Noto Sans KR',sans-serif;
+              font-weight:700;white-space:nowrap;
+              box-shadow:0 1px 4px rgba(0,0,0,0.3);
+              max-width:110px;overflow:hidden;text-overflow:ellipsis;
+            ">${shortName}</div>
           </div>`,
-        iconAnchor: [8, 8],
+        iconAnchor: [14, 14],
       });
 
       const marker = L.marker([shop.lat, shop.lng], {

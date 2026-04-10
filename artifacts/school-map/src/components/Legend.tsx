@@ -95,27 +95,35 @@ export default function Legend({
 
       {/* 무인전자담배 */}
       <div className="border-t border-slate-100 pt-3">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">무인전자담배</p>
-          <button
-            onClick={onToggleTobacco}
-            className={`text-xs px-2 py-0.5 rounded-full font-medium transition-colors ${
-              showTobacco ? "bg-orange-100 text-orange-700" : "bg-slate-100 text-slate-400"
-            }`}
-          >
-            {showTobacco ? "ON" : "OFF"}
-          </button>
-        </div>
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">무인전자담배</p>
+        <ul className="space-y-1.5">
+          <li>
+            <button
+              onClick={onToggleTobacco}
+              className={`flex items-center gap-2 text-sm w-full rounded-md px-2 py-1.5 transition-all ${
+                showTobacco ? "bg-orange-50 text-orange-700" : "text-slate-400"
+              }`}
+            >
+              <span className="flex-shrink-0 w-4 h-4 rounded-sm border-2 border-orange-400 bg-orange-100 flex items-center justify-center text-[9px]">🚬</span>
+              <span>업소 표시</span>
+              {showTobacco
+                ? <span className="ml-auto text-xs font-semibold">ON</span>
+                : <span className="ml-auto text-xs">OFF</span>
+              }
+            </button>
+          </li>
+        </ul>
         {showTobacco && (
-          <ul className="space-y-1.5">
+          <ul className="mt-2 space-y-1.5 pl-1">
             {tobaccoZones.map(([zone, color, label]) => (
-              <li key={zone} className="flex items-center gap-2 text-sm">
+              <li key={zone} className="flex items-center gap-2">
                 <span
-                  className="inline-block w-3 h-3 rounded-sm flex-shrink-0 border border-white"
+                  className="inline-block w-3.5 h-3.5 rounded-sm flex-shrink-0 border-2 border-white shadow-sm"
                   style={{ backgroundColor: color }}
                 />
-                <span className="text-slate-700 text-xs">{zone} <span className="text-slate-400">({label})</span></span>
-                <span className="ml-auto text-slate-400 text-xs font-mono">{tobaccoCounts[zone]}</span>
+                <span className="text-xs text-slate-700">{zone}</span>
+                <span className="text-xs text-slate-400">({label})</span>
+                <span className="ml-auto text-xs font-mono text-slate-500">{tobaccoCounts[zone]}</span>
               </li>
             ))}
           </ul>
