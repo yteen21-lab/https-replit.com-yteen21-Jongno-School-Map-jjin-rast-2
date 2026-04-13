@@ -118,10 +118,10 @@ export default function LeafletMap({
         const circle = L.circle([school.lat, school.lng], {
           radius: cfg.radius,
           color: cfg.color,
-          weight: 2,
-          opacity: 0.8,
+          weight: cfg.radius === 50 ? 3 : 2.5,
+          opacity: 1,
           fillColor: cfg.fillColor,
-          fillOpacity: 0.25,
+          fillOpacity: cfg.radius === 50 ? 0.55 : 0.45,
         }).addTo(map);
 
         schoolLayerRef.current.push(circle);
