@@ -20,7 +20,7 @@ const SIDEBAR_MAX = 400;
 const SIDEBAR_DEFAULT = 200;
 
 const STORAGE_KEY_SCHOOLS = "schoolMap_schools_v1";
-const STORAGE_KEY_TOBACCO = "schoolMap_tobacco_v1";
+const STORAGE_KEY_TOBACCO = "schoolMap_tobacco_v2";
 
 function loadFromStorage<T>(key: string, fallback: T): T {
   try {
