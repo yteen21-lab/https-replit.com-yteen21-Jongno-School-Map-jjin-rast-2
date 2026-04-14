@@ -123,7 +123,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
               candidates.some((c) => k.trim().toLowerCase().includes(c))
             );
 
-          const nameKey    = findKey("업소명", "상호명", "name", "이름", "명칭", "상호");
+          const nameKey    = findKey("업소명", "상호명", "매장명", "name", "이름", "명칭", "상호", "매장");
           const latKey     = findKey("위도", "lat", "latitude", "y");
           const lngKey     = findKey("경도", "lng", "lon", "longitude", "x");
           const addressKey = findKey("주소", "address", "addr", "도로명", "지번");
@@ -255,7 +255,8 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
 
           <div className="bg-slate-50 rounded-lg p-2 text-[10px] text-slate-500 space-y-0.5">
             <p className="font-semibold text-slate-600">컬럼 안내</p>
-            <p>• 필수: <span className="font-mono">업소명, 위도, 경도</span></p>
+            <p>• 이름: <span className="font-mono">업소명 / 매장명 / 상호명</span></p>
+            <p>• 위치: <span className="font-mono">위도, 경도</span> (필수)</p>
             <p>• 선택: <span className="font-mono">주소</span></p>
           </div>
         </div>
