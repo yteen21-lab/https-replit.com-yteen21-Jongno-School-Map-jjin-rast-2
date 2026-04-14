@@ -10,6 +10,7 @@ interface LeafletMapProps {
   schools: School[];
   tobaccoShops: TobaccoShop[];
   selectedSchool: School | null;
+  selectedTobaccoShop: TobaccoShop | null;
   onSelectSchool: (school: School | null) => void;
   showRadius50: boolean;
   showRadius200: boolean;
@@ -23,6 +24,7 @@ export default function LeafletMap({
   schools,
   tobaccoShops,
   selectedSchool,
+  selectedTobaccoShop,
   onSelectSchool,
   showRadius50,
   showRadius200,
@@ -249,6 +251,11 @@ export default function LeafletMap({
     if (!mapRef.current || !selectedSchool) return;
     mapRef.current.panTo([selectedSchool.lat, selectedSchool.lng]);
   }, [selectedSchool]);
+
+  useEffect(() => {
+    if (!mapRef.current || !selectedTobaccoShop) return;
+    mapRef.current.flyTo([selectedTobaccoShop.lat, selectedTobaccoShop.lng], 16, { duration: 0.8 });
+  }, [selectedTobaccoShop]);
 
   return (
     <div

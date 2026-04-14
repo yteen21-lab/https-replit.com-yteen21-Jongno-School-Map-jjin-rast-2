@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import LeafletMap from "@/components/LeafletMap";
 import ExcelUploader from "@/components/ExcelUploader";
-import SchoolList from "@/components/SchoolList";
+import SchoolList, { highlight } from "@/components/SchoolList";
 import Legend from "@/components/Legend";
 import {
   School, TobaccoShop,
@@ -164,6 +164,7 @@ export default function MapPage() {
     loadFromStorage<TobaccoShop[]>(STORAGE_KEY_TOBACCO, SAMPLE_TOBACCO_SHOPS)
   );
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
+  const [selectedTobaccoShop, setSelectedTobaccoShop] = useState<TobaccoShop | null>(null);
   const [showRadius50, setShowRadius50] = useState(true);
   const [showRadius200, setShowRadius200] = useState(true);
   const [showTobacco, setShowTobacco] = useState(true);
@@ -201,6 +202,17 @@ export default function MapPage() {
         (s.district?.toLowerCase().includes(q) ?? false)
     );
   }, [schools, searchQuery]);
+
+  const filteredTobaccoShops = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [];
+    return tobaccoShops.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        (s.address?.toLowerCase().includes(q) ?? false) ||
+        (s.shopType === "유인" ? "오프라인매장" : "무인자판기").includes(q)
+    );
+  }, [tobaccoShops, searchQuery]);
 
   const violationCount = useMemo(
     () => tobaccoShops.filter((s) => getTobaccoZone(s, schools) !== "외부").length,
@@ -262,6 +274,13 @@ export default function MapPage() {
 
   const handleSelectSchool = useCallback((school: School) => {
     setSelectedSchool(school);
+    setSelectedTobaccoShop(null);
+    setSidebarOpen(true);
+  }, []);
+
+  const handleSelectTobaccoShop = useCallback((shop: TobaccoShop) => {
+    setSelectedTobaccoShop(shop);
+    setSelectedSchool(null);
     setSidebarOpen(true);
   }, []);
 
@@ -296,7 +315,7 @@ export default function MapPage() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => { setSearchQuery(e.target.value); setActiveTab("list"); }}
-                  placeholder="학교·구 검색..."
+                  placeholder="학교·담배샵 검색..."
                   className="w-full pl-6 pr-6 py-1.5 text-[11px] bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition"
                 />
                 {searchQuery && (
@@ -307,7 +326,8 @@ export default function MapPage() {
               </div>
               {searchQuery && (
                 <p className="text-[9px] text-slate-400 mt-1 pl-0.5">
-                  <span className="font-semibold text-green-600">{filteredSchools.length}개</span> 결과
+                  학교 <span className="font-semibold text-green-600">{filteredSchools.length}개</span>
+                  {tobaccoShops.length > 0 && <> · 담배샵 <span className="font-semibold text-orange-500">{filteredTobaccoShops.length}개</span></>}
                 </p>
               )}
             </div>
@@ -353,6 +373,52 @@ export default function MapPage() {
                     onSelectSchool={handleSelectSchool}
                     query={searchQuery}
                   />
+
+                  {/* 담배샵 검색 결과 */}
+                  {searchQuery && filteredTobaccoShops.length > 0 && (
+                    <div className="mt-3">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-xs">🚬</span>
+                        <span className="text-xs font-semibold text-slate-600">담배 업소 ({filteredTobaccoShops.length})</span>
+                      </div>
+                      <ul className="space-y-1">
+                        {filteredTobaccoShops.map((shop) => {
+                          const isSelected = selectedTobaccoShop?.id === shop.id;
+                          const isYuIn = shop.shopType === "유인";
+                          return (
+                            <li key={shop.id}>
+                              <button
+                                onClick={() => handleSelectTobaccoShop(shop)}
+                                className={`w-full text-left px-3 py-2 rounded-md text-sm transition-all ${
+                                  isSelected
+                                    ? "bg-orange-50 border border-orange-300 text-orange-800 font-medium"
+                                    : "hover:bg-slate-50 text-slate-700 border border-transparent"
+                                }`}
+                              >
+                                <span className="flex items-center gap-2">
+                                  <span className="text-[10px]">{isYuIn ? "🏪" : "🚬"}</span>
+                                  <span className="text-[11px] leading-tight">
+                                    {highlight(shop.name, searchQuery)}
+                                  </span>
+                                  <span className={`text-[9px] px-1 rounded flex-shrink-0 ${isYuIn ? "bg-purple-100 text-purple-600" : "bg-slate-100 text-slate-500"}`}>
+                                    {isYuIn ? "유인" : "무인"}
+                                  </span>
+                                </span>
+                                {shop.address && (
+                                  <span className="text-[10px] text-slate-400 mt-0.5 block pl-5">
+                                    {highlight(shop.address, searchQuery)}
+                                  </span>
+                                )}
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  )}
+                  {searchQuery && tobaccoShops.length > 0 && filteredTobaccoShops.length === 0 && filteredSchools.length === 0 && (
+                    <div className="text-center py-4 text-slate-400 text-xs">담배 업소 검색 결과 없음</div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -483,6 +549,7 @@ export default function MapPage() {
           schools={filteredSchools}
           tobaccoShops={visibleTobaccoShops}
           selectedSchool={selectedSchool}
+          selectedTobaccoShop={selectedTobaccoShop}
           onSelectSchool={setSelectedSchool}
           showRadius50={showRadius50}
           showRadius200={showRadius200}

@@ -8,7 +8,7 @@ interface SchoolListProps {
   query?: string;
 }
 
-function highlight(text: string, query: string) {
+export function highlight(text: string, query: string) {
   if (!query) return <>{text}</>;
   const idx = text.toLowerCase().indexOf(query.toLowerCase());
   if (idx === -1) return <>{text}</>;
