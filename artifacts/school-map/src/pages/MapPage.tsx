@@ -172,6 +172,7 @@ export default function MapPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT);
   const [activeTab, setActiveTab] = useState<"upload" | "list">("list");
+  const [savedAt, setSavedAt] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const isResizing = useRef(false);
 
@@ -242,6 +243,21 @@ export default function MapPage() {
     clearStorage(STORAGE_KEY_SCHOOLS, STORAGE_KEY_TOBACCO);
     setSelectedSchool(null);
     setSearchQuery("");
+    setSavedAt(null);
+  }, []);
+
+  const handleSave = useCallback(() => {
+    setSchools((prevSchools) => {
+      setTobaccoShops((prevShops) => {
+        saveToStorage(STORAGE_KEY_SCHOOLS, prevSchools);
+        saveToStorage(STORAGE_KEY_TOBACCO, prevShops);
+        return prevShops;
+      });
+      return prevSchools;
+    });
+    const now = new Date();
+    const timeStr = `${now.getHours().toString().padStart(2,"0")}:${now.getMinutes().toString().padStart(2,"0")}:${now.getSeconds().toString().padStart(2,"0")}`;
+    setSavedAt(timeStr);
   }, []);
 
   const handleSelectSchool = useCallback((school: School) => {
@@ -340,10 +356,16 @@ export default function MapPage() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {(isCustomSchools || isCustomTobacco) && (
-                    <div className="rounded-lg bg-green-50 border border-green-200 p-2 text-[10px]">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-semibold text-green-700">💾 저장된 데이터 사용 중</span>
+                  <div className="rounded-lg bg-slate-50 border border-slate-200 p-2 text-[10px]">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-semibold text-slate-600">현재 데이터 현황</span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={handleSave}
+                          className="text-[9px] bg-blue-500 hover:bg-blue-600 text-white rounded px-1.5 py-0.5 font-semibold transition-colors"
+                        >
+                          💾 저장
+                        </button>
                         <button
                           onClick={handleReset}
                           className="text-[9px] text-red-400 hover:text-red-600 underline"
@@ -351,17 +373,21 @@ export default function MapPage() {
                           초기화
                         </button>
                       </div>
-                      <div className="text-green-600 space-y-0.5">
-                        {isCustomSchools && (
-                          <p>• 학교: 샘플 {SAMPLE_SCHOOLS.length}개 + 추가 {schools.filter(s => s.id.startsWith("excel-")).length}개 = 총 {schools.length}개</p>
-                        )}
-                        {isCustomTobacco && (
-                          <p>• 담배샵: 샘플 {SAMPLE_TOBACCO_SHOPS.length}개 + 추가 {tobaccoShops.filter(s => s.id.startsWith("excel-")).length}개 = 총 {tobaccoShops.length}개</p>
-                        )}
-                      </div>
-                      <p className="text-green-500 mt-1">새 파일 업로드 시 기존 데이터에 추가됨</p>
                     </div>
-                  )}
+                    <div className="text-slate-600 space-y-0.5">
+                      <p>• 학교: 샘플 {SAMPLE_SCHOOLS.length}개
+                        {isCustomSchools && <span className="text-blue-600 font-semibold"> + 추가 {schools.filter(s => s.id.startsWith("excel-")).length}개 = 총 {schools.length}개</span>}
+                      </p>
+                      <p>• 담배샵: 샘플 {SAMPLE_TOBACCO_SHOPS.length}개
+                        {isCustomTobacco && <span className="text-blue-600 font-semibold"> + 추가 {tobaccoShops.filter(s => s.id.startsWith("excel-")).length}개 = 총 {tobaccoShops.length}개</span>}
+                      </p>
+                    </div>
+                    {savedAt ? (
+                      <p className="text-blue-500 mt-1">✓ {savedAt} 저장됨 · 새 파일 업로드 시 자동 추가</p>
+                    ) : (
+                      <p className="text-slate-400 mt-1">새 파일 업로드 시 기존 데이터에 추가됨</p>
+                    )}
+                  </div>
                   <ExcelUploader
                     onSchoolsLoaded={handleSchoolsLoaded}
                     onTobaccoShopsLoaded={handleTobaccoShopsLoaded}
