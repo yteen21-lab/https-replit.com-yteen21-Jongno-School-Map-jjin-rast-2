@@ -12,30 +12,44 @@ type UploadMode = "school" | "tobacco";
 
 function autoDetectShopType(name: string, rawTypeCol: string): "무인" | "유인" {
   const col = rawTypeCol.trim();
-  // 1) 유형 컬럼 명시값 최우선
-  if (col.includes("유인") || col.toLowerCase().includes("staff") || col.toLowerCase().includes("manned")) return "유인";
-  if (col.includes("무인") || col.toLowerCase().includes("unmanned") || col.toLowerCase().includes("vending") || col.toLowerCase().includes("kiosk")) return "무인";
 
-  // 2) 이름에서 유인(유人 직원 상주) 명확한 경우 → 유인
+  // 1) 유형 컬럼 명시값 최우선 ─────────────────────────────────
+  // 오프라인매장 / 일반매장 → 유인 (직원 상주 오프라인 점포)
+  if (
+    col.includes("오프라인매장") || col.includes("오프라인") ||
+    col.includes("일반매장") || col.includes("일반 매장") ||
+    col.includes("유인") ||
+    col.toLowerCase().includes("offline") ||
+    col.toLowerCase().includes("staff") ||
+    col.toLowerCase().includes("manned")
+  ) return "유인";
+
+  // 무인자판기 / 자판기 / 무인 → 무인 (자동판매기 형태)
+  if (
+    col.includes("무인자판기") || col.includes("자판기") ||
+    col.includes("무인") || col.includes("키오스크") ||
+    col.toLowerCase().includes("unmanned") ||
+    col.toLowerCase().includes("vending") ||
+    col.toLowerCase().includes("kiosk")
+  ) return "무인";
+
+  // 2) 이름에서 유인(직원 상주 점포) 키워드 → 유인 ────────────
   const n = name;
   if (
     n.includes("편의점") || n.includes("마트") || n.includes("슈퍼") || n.includes("수퍼") ||
     n.includes("세븐일레븐") || n.includes("이마트") || n.includes("롯데") ||
     n.toLowerCase().includes("gs25") || n.toLowerCase().includes(" cu") ||
-    n.includes("유인")
+    n.includes("오프라인") || n.includes("유인")
   ) return "유인";
 
-  // 3) 이름에서 무인 키워드 → 무인
+  // 3) 이름에서 무인(자판기) 키워드 → 무인 ─────────────────────
   if (
-    n.includes("무인") ||
-    n.includes("자판기") ||
-    n.includes("키오스크") ||
-    n.toLowerCase().includes("kiosk") ||
-    n.toLowerCase().includes("vending") ||
+    n.includes("무인") || n.includes("자판기") || n.includes("키오스크") ||
+    n.toLowerCase().includes("kiosk") || n.toLowerCase().includes("vending") ||
     n.toLowerCase().includes("unmanned")
   ) return "무인";
 
-  // 4) 불명확 → 기본값 "무인" (이 앱은 무인전자담배 모니터링이 주목적)
+  // 4) 불명확 → 기본값 "무인"
   return "무인";
 }
 
@@ -156,7 +170,11 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
           const latKey      = findKey("위도", "lat", "latitude", "y");
           const lngKey      = findKey("경도", "lng", "lon", "longitude", "x");
           const addressKey  = findKey("주소", "address", "addr", "도로명", "지번");
-          const shopTypeKey = findKey("유형", "판매방식", "종류", "온라인", "shoptype", "type");
+          const shopTypeKey = findKey(
+            "매장유형", "운영유형", "판매유형", "업소유형", "유형구분",
+            "유형", "판매방식", "종류", "구분", "형태",
+            "shoptype", "type", "category"
+          );
 
           if (!nameKey || !latKey || !lngKey) {
             setTobaccoError(`필수 컬럼 없음\n필요: 업소명, 위도, 경도\n현재: ${Object.keys(firstRow).join(", ")}`);
@@ -292,13 +310,34 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
             <p className="font-semibold text-slate-600">컬럼 안내</p>
             <p>• 이름: <span className="font-mono">업소명 / 매장명 / 상호명</span></p>
             <p>• 위치: <span className="font-mono">위도, 경도</span> (필수)</p>
-            <p>• 선택: <span className="font-mono">주소, 유형</span></p>
-            <p className="text-slate-400">유형 값: <span className="font-mono">무인 / 유인</span></p>
-            <div className="mt-1.5 pt-1.5 border-t border-slate-200">
-              <p className="font-semibold text-slate-500">자동 감지</p>
-              <p className="text-slate-400">유형 컬럼 없을 시 이름에서 자동 판별:</p>
-              <p>• 🚬 <span className="font-mono">무인</span>: "무인", "자판기", "키오스크" 포함</p>
-              <p>• 🏪 <span className="font-mono">유인</span>: 그 외 (일반담배샵)</p>
+            <p>• 주소: <span className="font-mono">주소 / 도로명</span> (선택)</p>
+
+            <div className="mt-1.5 pt-1.5 border-t border-slate-200 space-y-0.5">
+              <p className="font-semibold text-slate-600">매장유형 컬럼</p>
+              <p className="text-slate-400">컬럼명: <span className="font-mono">매장유형 / 운영유형 / 유형구분 / 구분</span></p>
+              <div className="mt-1 space-y-0.5">
+                <div className="flex items-start gap-1">
+                  <span className="text-[9px] font-bold text-slate-500 w-3 flex-shrink-0 mt-0.5">🏪</span>
+                  <div>
+                    <p className="font-semibold text-purple-600">오프라인매장 → 유인</p>
+                    <p className="text-slate-400">값: <span className="font-mono">오프라인매장, 오프라인, 일반매장, 유인</span></p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-1">
+                  <span className="text-[9px] font-bold text-slate-500 w-3 flex-shrink-0 mt-0.5">🚬</span>
+                  <div>
+                    <p className="font-semibold text-slate-600">무인자판기 → 무인</p>
+                    <p className="text-slate-400">값: <span className="font-mono">무인자판기, 자판기, 무인, 키오스크</span></p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-1.5 pt-1.5 border-t border-slate-200 space-y-0.5">
+              <p className="font-semibold text-slate-500">컬럼 없을 시 이름 자동 감지</p>
+              <p>• 🚬 <span className="font-mono">"무인"·"자판기"·"키오스크"</span> 포함 → 무인</p>
+              <p>• 🏪 <span className="font-mono">"오프라인"·"편의점"·"마트"</span> 포함 → 유인</p>
+              <p className="text-slate-400">그 외 불명확 → 무인 (기본값)</p>
             </div>
           </div>
         </div>
