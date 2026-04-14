@@ -18,20 +18,20 @@ const SIDEBAR_W = 160;
 function LogoSection() {
   return (
     <div className="px-2 py-2 border-t border-slate-100 space-y-1.5">
-      <div className="bg-white border border-slate-100 rounded-lg p-1.5 flex items-center justify-center">
+      <div className="bg-white border border-slate-100 rounded-lg px-2 py-1.5 flex items-center justify-center">
         <img
           src={ymcaLogo}
           alt="서울YMCA"
           className="w-full object-contain"
-          style={{ maxHeight: "44px" }}
+          style={{ maxHeight: "56px" }}
         />
       </div>
-      <div className="bg-white border border-slate-100 rounded-lg p-1.5 flex items-center justify-center">
+      <div className="bg-white border border-slate-100 rounded-lg px-2 py-1.5 flex items-center justify-center">
         <img
           src={kctcreLogo}
           alt="한국담배규제연구교육센터"
           className="w-full object-contain"
-          style={{ maxHeight: "44px" }}
+          style={{ maxHeight: "52px" }}
         />
       </div>
     </div>
@@ -129,7 +129,7 @@ function DistrictPanel({ school, allSchools, tobaccoShops, onClose }: DistrictPa
 
 export default function MapPage() {
   const [schools, setSchools] = useState<School[]>(SAMPLE_SCHOOLS);
-  const [tobaccoShops] = useState<TobaccoShop[]>(SAMPLE_TOBACCO_SHOPS);
+  const [tobaccoShops, setTobaccoShops] = useState<TobaccoShop[]>(SAMPLE_TOBACCO_SHOPS);
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
   const [showRadius50, setShowRadius50] = useState(true);
   const [showRadius200, setShowRadius200] = useState(true);
@@ -161,8 +161,13 @@ export default function MapPage() {
     setSearchQuery("");
   }, []);
 
+  const handleTobaccoShopsLoaded = useCallback((newShops: TobaccoShop[]) => {
+    setTobaccoShops(newShops);
+  }, []);
+
   const handleReset = useCallback(() => {
     setSchools(SAMPLE_SCHOOLS);
+    setTobaccoShops(SAMPLE_TOBACCO_SHOPS);
     setSelectedSchool(null);
     setSearchQuery("");
   }, []);
@@ -262,7 +267,10 @@ export default function MapPage() {
                   />
                 </div>
               ) : (
-                <ExcelUploader onSchoolsLoaded={handleSchoolsLoaded} />
+                <ExcelUploader
+                  onSchoolsLoaded={handleSchoolsLoaded}
+                  onTobaccoShopsLoaded={handleTobaccoShopsLoaded}
+                />
               )}
             </div>
 

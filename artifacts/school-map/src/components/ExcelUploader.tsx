@@ -1,11 +1,14 @@
 import { useCallback, useRef, useState } from "react";
 import * as XLSX from "xlsx";
-import { School, SchoolType } from "@/types/school";
+import { School, SchoolType, TobaccoShop } from "@/types/school";
 import { Upload, FileSpreadsheet, AlertCircle } from "lucide-react";
 
 interface ExcelUploaderProps {
   onSchoolsLoaded: (schools: School[]) => void;
+  onTobaccoShopsLoaded?: (shops: TobaccoShop[]) => void;
 }
+
+type UploadMode = "school" | "tobacco";
 
 const SCHOOL_TYPE_MAP: Record<string, SchoolType> = {
   초: "초등학교",
@@ -35,148 +38,228 @@ function detectSchoolType(name: string, typeStr?: string): SchoolType {
   return "기타";
 }
 
-export default function ExcelUploader({ onSchoolsLoaded }: ExcelUploaderProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
+export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }: ExcelUploaderProps) {
+  const schoolInputRef = useRef<HTMLInputElement>(null);
+  const tobaccoInputRef = useRef<HTMLInputElement>(null);
+  const [mode, setMode] = useState<UploadMode>("school");
+  const [schoolError, setSchoolError] = useState<string | null>(null);
+  const [tobaccoError, setTobaccoError] = useState<string | null>(null);
+  const [isDraggingSchool, setIsDraggingSchool] = useState(false);
+  const [isDraggingTobacco, setIsDraggingTobacco] = useState(false);
+  const [schoolSuccess, setSchoolSuccess] = useState<number | null>(null);
+  const [tobaccoSuccess, setTobaccoSuccess] = useState<number | null>(null);
 
-  const processFile = useCallback(
+  const processSchoolFile = useCallback(
     (file: File) => {
-      setError(null);
+      setSchoolError(null);
+      setSchoolSuccess(null);
       const reader = new FileReader();
-
       reader.onload = (e) => {
         try {
           const data = new Uint8Array(e.target?.result as ArrayBuffer);
           const workbook = XLSX.read(data, { type: "array" });
-          const sheetName = workbook.SheetNames[0];
-          const sheet = workbook.Sheets[sheetName];
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
           const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
 
-          if (rows.length === 0) {
-            setError("엑셀 파일이 비어 있습니다.");
-            return;
-          }
+          if (rows.length === 0) { setSchoolError("파일이 비어 있습니다."); return; }
 
           const firstRow = rows[0];
-          const keys = Object.keys(firstRow).map((k) => k.trim().toLowerCase());
-
           const findKey = (...candidates: string[]) =>
             Object.keys(firstRow).find((k) =>
               candidates.some((c) => k.trim().toLowerCase().includes(c))
             );
 
           const nameKey = findKey("학교명", "name", "학교", "이름", "명칭");
-          const latKey = findKey("위도", "lat", "latitude", "y");
-          const lngKey = findKey("경도", "lng", "lon", "longitude", "x");
+          const latKey  = findKey("위도", "lat", "latitude", "y");
+          const lngKey  = findKey("경도", "lng", "lon", "longitude", "x");
           const typeKey = findKey("구분", "종류", "type", "학교구분", "학교종류", "유형");
+          const distKey = findKey("구", "district", "지역", "행정구");
 
           if (!nameKey || !latKey || !lngKey) {
-            setError(
-              `필수 컬럼을 찾을 수 없습니다.\n필요한 컬럼: 학교명(name), 위도(lat), 경도(lng)\n현재 컬럼: ${Object.keys(firstRow).join(", ")}`
-            );
+            setSchoolError(`필수 컬럼 없음\n필요: 학교명, 위도, 경도\n현재: ${Object.keys(firstRow).join(", ")}`);
             return;
           }
 
-          const schools: School[] = rows
-            .map((row, i) => {
-              const name = String(row[nameKey!] || "").trim();
-              const lat = parseFloat(String(row[latKey!] || ""));
-              const lng = parseFloat(String(row[lngKey!] || ""));
-              const typeStr = typeKey ? String(row[typeKey] || "") : "";
+          const schools: School[] = rows.map((row, i) => {
+            const name = String(row[nameKey!] || "").trim();
+            const lat  = parseFloat(String(row[latKey!] || ""));
+            const lng  = parseFloat(String(row[lngKey!] || ""));
+            const typeStr = typeKey ? String(row[typeKey] || "") : "";
+            const district = distKey ? String(row[distKey] || "").trim() || undefined : undefined;
+            if (!name || isNaN(lat) || isNaN(lng)) return null;
+            if (lat < 30 || lat > 40 || lng < 120 || lng > 135) return null;
+            return { id: `excel-s${i}`, name, lat, lng, type: detectSchoolType(name, typeStr), district } as School;
+          }).filter(Boolean) as School[];
 
-              if (!name || isNaN(lat) || isNaN(lng)) return null;
-              if (lat < 30 || lat > 40 || lng < 120 || lng > 135) return null;
-
-              return {
-                id: `excel-${i}`,
-                name,
-                lat,
-                lng,
-                type: detectSchoolType(name, typeStr),
-              } as School;
-            })
-            .filter(Boolean) as School[];
-
-          if (schools.length === 0) {
-            setError("유효한 학교 데이터가 없습니다. 위도/경도 값을 확인해 주세요.");
-            return;
-          }
-
+          if (schools.length === 0) { setSchoolError("유효한 데이터가 없습니다. 위도/경도를 확인해 주세요."); return; }
+          setSchoolSuccess(schools.length);
           onSchoolsLoaded(schools);
-        } catch (err) {
-          setError("파일을 파싱하는 중 오류가 발생했습니다.");
+        } catch {
+          setSchoolError("파일 파싱 중 오류가 발생했습니다.");
         }
       };
-
       reader.readAsArrayBuffer(file);
     },
     [onSchoolsLoaded]
   );
 
-  const handleFile = useCallback(
-    (file: File | undefined) => {
-      if (!file) return;
-      const ext = file.name.split(".").pop()?.toLowerCase();
-      if (!["xlsx", "xls", "csv"].includes(ext || "")) {
-        setError("xlsx, xls, csv 파일만 지원합니다.");
-        return;
-      }
-      processFile(file);
+  const processTobaccoFile = useCallback(
+    (file: File) => {
+      setTobaccoError(null);
+      setTobaccoSuccess(null);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: "array" });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+          if (rows.length === 0) { setTobaccoError("파일이 비어 있습니다."); return; }
+
+          const firstRow = rows[0];
+          const findKey = (...candidates: string[]) =>
+            Object.keys(firstRow).find((k) =>
+              candidates.some((c) => k.trim().toLowerCase().includes(c))
+            );
+
+          const nameKey    = findKey("업소명", "상호명", "name", "이름", "명칭", "상호");
+          const latKey     = findKey("위도", "lat", "latitude", "y");
+          const lngKey     = findKey("경도", "lng", "lon", "longitude", "x");
+          const addressKey = findKey("주소", "address", "addr", "도로명", "지번");
+
+          if (!nameKey || !latKey || !lngKey) {
+            setTobaccoError(`필수 컬럼 없음\n필요: 업소명, 위도, 경도\n현재: ${Object.keys(firstRow).join(", ")}`);
+            return;
+          }
+
+          const shops: TobaccoShop[] = rows.map((row, i) => {
+            const name    = String(row[nameKey!] || "").trim();
+            const lat     = parseFloat(String(row[latKey!] || ""));
+            const lng     = parseFloat(String(row[lngKey!] || ""));
+            const address = addressKey ? String(row[addressKey] || "").trim() || undefined : undefined;
+            if (!name || isNaN(lat) || isNaN(lng)) return null;
+            if (lat < 30 || lat > 40 || lng < 120 || lng > 135) return null;
+            return { id: `excel-t${i}`, name, lat, lng, address } as TobaccoShop;
+          }).filter(Boolean) as TobaccoShop[];
+
+          if (shops.length === 0) { setTobaccoError("유효한 데이터가 없습니다. 위도/경도를 확인해 주세요."); return; }
+          setTobaccoSuccess(shops.length);
+          onTobaccoShopsLoaded?.(shops);
+        } catch {
+          setTobaccoError("파일 파싱 중 오류가 발생했습니다.");
+        }
+      };
+      reader.readAsArrayBuffer(file);
     },
-    [processFile]
+    [onTobaccoShopsLoaded]
   );
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setIsDragging(false);
-      handleFile(e.dataTransfer.files[0]);
-    },
-    [handleFile]
-  );
+  const handleSchoolFile = useCallback((file: File | undefined) => {
+    if (!file) return;
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    if (!["xlsx", "xls", "csv"].includes(ext || "")) { setSchoolError("xlsx, xls, csv만 지원합니다."); return; }
+    processSchoolFile(file);
+  }, [processSchoolFile]);
+
+  const handleTobaccoFile = useCallback((file: File | undefined) => {
+    if (!file) return;
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    if (!["xlsx", "xls", "csv"].includes(ext || "")) { setTobaccoError("xlsx, xls, csv만 지원합니다."); return; }
+    processTobaccoFile(file);
+  }, [processTobaccoFile]);
 
   return (
     <div className="space-y-3">
-      <div
-        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-        onDragLeave={() => setIsDragging(false)}
-        onDrop={handleDrop}
-        onClick={() => fileInputRef.current?.click()}
-        className={`
-          border-2 border-dashed rounded-lg p-4 cursor-pointer text-center transition-all
-          ${isDragging
-            ? "border-blue-500 bg-blue-50"
-            : "border-slate-200 hover:border-blue-400 hover:bg-slate-50"
-          }
-        `}
-      >
-        <FileSpreadsheet className="mx-auto h-8 w-8 text-slate-400 mb-2" />
-        <p className="text-sm font-medium text-slate-700">엑셀 파일 업로드</p>
-        <p className="text-xs text-slate-400 mt-1">xlsx, xls, csv 지원</p>
-        <p className="text-xs text-slate-400">드래그하거나 클릭하세요</p>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".xlsx,.xls,.csv"
-          className="hidden"
-          onChange={(e) => handleFile(e.target.files?.[0])}
-        />
+      {/* Mode Toggle */}
+      <div className="flex rounded-lg border border-slate-200 overflow-hidden text-[10px] font-medium">
+        <button
+          onClick={() => setMode("school")}
+          className={`flex-1 py-1.5 transition-colors ${mode === "school" ? "bg-green-600 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}
+        >
+          학교
+        </button>
+        <button
+          onClick={() => setMode("tobacco")}
+          className={`flex-1 py-1.5 transition-colors ${mode === "tobacco" ? "bg-orange-500 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}
+        >
+          전자담배샵
+        </button>
       </div>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex gap-2">
-          <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
-          <p className="text-xs text-red-700 whitespace-pre-wrap">{error}</p>
+      {/* School Upload */}
+      {mode === "school" && (
+        <div className="space-y-2">
+          <div
+            onDragOver={(e) => { e.preventDefault(); setIsDraggingSchool(true); }}
+            onDragLeave={() => setIsDraggingSchool(false)}
+            onDrop={(e) => { e.preventDefault(); setIsDraggingSchool(false); handleSchoolFile(e.dataTransfer.files[0]); }}
+            onClick={() => schoolInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-lg p-4 cursor-pointer text-center transition-all ${isDraggingSchool ? "border-green-500 bg-green-50" : "border-slate-200 hover:border-green-400 hover:bg-slate-50"}`}
+          >
+            <FileSpreadsheet className="mx-auto h-6 w-6 text-slate-400 mb-1.5" />
+            <p className="text-[11px] font-medium text-slate-700">학교 데이터 업로드</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">xlsx, xls, csv</p>
+            <input ref={schoolInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden"
+              onChange={(e) => handleSchoolFile(e.target.files?.[0])} />
+          </div>
+
+          {schoolSuccess !== null && (
+            <div className="bg-green-50 border border-green-200 rounded-lg px-2 py-1.5">
+              <p className="text-[10px] text-green-700 font-semibold">✓ 학교 {schoolSuccess}개 로드됨</p>
+            </div>
+          )}
+          {schoolError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-2 flex gap-1.5">
+              <AlertCircle className="h-3.5 w-3.5 text-red-500 flex-shrink-0 mt-0.5" />
+              <p className="text-[10px] text-red-700 whitespace-pre-wrap">{schoolError}</p>
+            </div>
+          )}
+
+          <div className="bg-slate-50 rounded-lg p-2 text-[10px] text-slate-500 space-y-0.5">
+            <p className="font-semibold text-slate-600">컬럼 안내</p>
+            <p>• 필수: <span className="font-mono">학교명, 위도, 경도</span></p>
+            <p>• 선택: <span className="font-mono">학교구분, 구</span></p>
+          </div>
         </div>
       )}
 
-      <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-500 space-y-1">
-        <p className="font-medium text-slate-600">엑셀 형식 안내</p>
-        <p>• 필수 컬럼: <span className="font-mono">학교명, 위도, 경도</span></p>
-        <p>• 선택 컬럼: <span className="font-mono">학교구분</span> (초등/중학/고등)</p>
-        <p>• 위도·경도는 십진수 형식 (예: 37.5735, 126.979)</p>
-      </div>
+      {/* Tobacco Upload */}
+      {mode === "tobacco" && (
+        <div className="space-y-2">
+          <div
+            onDragOver={(e) => { e.preventDefault(); setIsDraggingTobacco(true); }}
+            onDragLeave={() => setIsDraggingTobacco(false)}
+            onDrop={(e) => { e.preventDefault(); setIsDraggingTobacco(false); handleTobaccoFile(e.dataTransfer.files[0]); }}
+            onClick={() => tobaccoInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-lg p-4 cursor-pointer text-center transition-all ${isDraggingTobacco ? "border-orange-500 bg-orange-50" : "border-slate-200 hover:border-orange-400 hover:bg-slate-50"}`}
+          >
+            <span className="block text-2xl mb-1">🚬</span>
+            <p className="text-[11px] font-medium text-slate-700">전자담배샵 데이터 업로드</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">xlsx, xls, csv</p>
+            <input ref={tobaccoInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden"
+              onChange={(e) => handleTobaccoFile(e.target.files?.[0])} />
+          </div>
+
+          {tobaccoSuccess !== null && (
+            <div className="bg-orange-50 border border-orange-200 rounded-lg px-2 py-1.5">
+              <p className="text-[10px] text-orange-700 font-semibold">✓ 업소 {tobaccoSuccess}개 로드됨</p>
+            </div>
+          )}
+          {tobaccoError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-2 flex gap-1.5">
+              <AlertCircle className="h-3.5 w-3.5 text-red-500 flex-shrink-0 mt-0.5" />
+              <p className="text-[10px] text-red-700 whitespace-pre-wrap">{tobaccoError}</p>
+            </div>
+          )}
+
+          <div className="bg-slate-50 rounded-lg p-2 text-[10px] text-slate-500 space-y-0.5">
+            <p className="font-semibold text-slate-600">컬럼 안내</p>
+            <p>• 필수: <span className="font-mono">업소명, 위도, 경도</span></p>
+            <p>• 선택: <span className="font-mono">주소</span></p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
