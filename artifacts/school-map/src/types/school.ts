@@ -275,43 +275,136 @@ export const SAMPLE_SCHOOLS: School[] = [
 ];
 
 /* ──────────────────────────────────────────────────
-   서울 무인전자담배 업소 샘플 데이터
+   서울시 무인·유인 전자담배 업소 샘플 데이터
+   (서울 25개 구 전역 분포)
    zone은 런타임에 계산, 여기선 위치만 정의
 ────────────────────────────────────────────────── */
 export const SAMPLE_TOBACCO_SHOPS: TobaccoShop[] = [
-  // 50m 이내 (학교 바로 앞)
-  { id: "t1",  name: "무인전자담배 종로1가점",   lat: 37.5755, lng: 126.9793, address: "종로구 종로1가",     shopType: "무인" },
-  { id: "t2",  name: "무인전자담배 삼청동점",    lat: 37.5790, lng: 126.9745, address: "종로구 삼청동",      shopType: "무인" },
-  { id: "t3",  name: "담배샵 종로3가점",         lat: 37.5700, lng: 126.9853, address: "종로구 종로3가",     shopType: "유인" },
-  { id: "t4",  name: "무인전자담배 상계역점",    lat: 37.6562, lng: 127.0638, address: "노원구 상계동",      shopType: "무인" },
-  { id: "t5",  name: "담배샵 잠실역점",          lat: 37.5122, lng: 127.0820, address: "송파구 잠실동",      shopType: "유인" },
-  { id: "t6",  name: "무인전자담배 대치동점",    lat: 37.4952, lng: 127.0608, address: "강남구 대치동",      shopType: "무인" },
-  { id: "t7",  name: "무인전자담배 강동초앞점",  lat: 37.5499, lng: 127.1479, address: "강동구 강동동",      shopType: "무인" },
 
-  // 200m 이내 (학교 근처)
-  { id: "t8",  name: "무인전자담배 효자동점",    lat: 37.5820, lng: 126.9730, address: "종로구 효자동",      shopType: "무인" },
-  { id: "t9",  name: "담배샵 창동역점",          lat: 37.6528, lng: 127.0477, address: "도봉구 창동",        shopType: "유인" },
-  { id: "t10", name: "무인전자담배 전농동점",    lat: 37.5775, lng: 127.0558, address: "동대문구 전농동",    shopType: "무인" },
-  { id: "t11", name: "무인전자담배 목동역점",    lat: 37.5248, lng: 126.8758, address: "양천구 목동",        shopType: "무인" },
-  { id: "t12", name: "담배샵 신정동점",          lat: 37.5198, lng: 126.8648, address: "양천구 신정동",      shopType: "유인" },
-  { id: "t13", name: "무인전자담배 봉천동점",    lat: 37.4762, lng: 126.9468, address: "관악구 봉천동",      shopType: "무인" },
-  { id: "t14", name: "무인전자담배 반포점",      lat: 37.5099, lng: 127.0119, address: "서초구 반포동",      shopType: "무인" },
-  { id: "t15", name: "담배샵 압구정점",          lat: 37.5268, lng: 127.0290, address: "강남구 압구정동",    shopType: "유인" },
-  { id: "t16", name: "무인전자담배 광장동점",    lat: 37.5453, lng: 127.1030, address: "광진구 광장동",      shopType: "무인" },
-  { id: "t17", name: "담배샵 성동구청점",        lat: 37.5602, lng: 127.0433, address: "성동구 성수동",      shopType: "유인" },
-  { id: "t18", name: "무인전자담배 상암DMC점",   lat: 37.5775, lng: 126.8898, address: "마포구 상암동",      shopType: "무인" },
-  { id: "t19", name: "담배샵 마포역점",          lat: 37.5549, lng: 126.9235, address: "마포구 도화동",      shopType: "유인" },
-  { id: "t20", name: "무인전자담배 도봉산점",    lat: 37.6693, lng: 127.0461, address: "도봉구 도봉동",      shopType: "무인" },
+  /* ── 종로구 ── */
+  { id: "t1",  name: "무인전자담배 광화문점",       lat: 37.5730, lng: 126.9769, address: "종로구 세종로 82",         shopType: "무인" },
+  { id: "t2",  name: "인생한모금 종로3가점",        lat: 37.5706, lng: 126.9930, address: "종로구 종로3가 54",        shopType: "무인" },
+  { id: "t3",  name: "전자담배 혜화전문점",         lat: 37.5823, lng: 127.0019, address: "종로구 명륜3가 33",        shopType: "유인" },
+  { id: "t4",  name: "무인전자담배 효자동점",       lat: 37.5818, lng: 126.9723, address: "종로구 효자동 11",         shopType: "무인" },
 
-  // 외부 (200m 이상)
-  { id: "t21", name: "무인전자담배 광화문점",    lat: 37.5733, lng: 126.9771, address: "종로구 세종로",      shopType: "무인" },
-  { id: "t22", name: "담배샵 이태원점",          lat: 37.5348, lng: 126.9950, address: "용산구 이태원동",    shopType: "유인" },
-  { id: "t23", name: "무인전자담배 여의도점",    lat: 37.5216, lng: 126.9240, address: "영등포구 여의도동",  shopType: "무인" },
-  { id: "t24", name: "무인전자담배 노량진점",    lat: 37.5143, lng: 126.9426, address: "동작구 노량진동",    shopType: "무인" },
-  { id: "t25", name: "담배샵 신촌점",            lat: 37.5553, lng: 126.9368, address: "서대문구 창천동",    shopType: "유인" },
-  { id: "t26", name: "무인전자담배 홍대입구점",  lat: 37.5572, lng: 126.9240, address: "마포구 동교동",      shopType: "무인" },
-  { id: "t27", name: "무인전자담배 구로디지털점",lat: 37.4853, lng: 126.9015, address: "구로구 구로동",      shopType: "무인" },
-  { id: "t28", name: "담배샵 강남역점",          lat: 37.4979, lng: 127.0276, address: "강남구 역삼동",      shopType: "유인" },
-  { id: "t29", name: "무인전자담배 건대입구점",  lat: 37.5402, lng: 127.0697, address: "광진구 화양동",      shopType: "무인" },
-  { id: "t30", name: "무인전자담배 수유역점",    lat: 37.6387, lng: 127.0254, address: "강북구 수유동",      shopType: "무인" },
+  /* ── 중구 ── */
+  { id: "t5",  name: "인생한모금 명동점",           lat: 37.5636, lng: 126.9826, address: "중구 명동2가 41",          shopType: "무인" },
+  { id: "t6",  name: "전자담배 을지로전문점",       lat: 37.5660, lng: 126.9921, address: "중구 을지로3가 315",       shopType: "유인" },
+  { id: "t7",  name: "무인전자담배 시청역점",       lat: 37.5660, lng: 126.9773, address: "중구 태평로1가 31",        shopType: "무인" },
+
+  /* ── 용산구 ── */
+  { id: "t8",  name: "무인전자담배 이태원점",       lat: 37.5349, lng: 126.9943, address: "용산구 이태원동 119",      shopType: "무인" },
+  { id: "t9",  name: "스모크샵 한남점",             lat: 37.5346, lng: 127.0008, address: "용산구 한남동 683",        shopType: "유인" },
+  { id: "t10", name: "무인전자담배 삼각지점",       lat: 37.5375, lng: 126.9700, address: "용산구 한강로3가 40",      shopType: "무인" },
+
+  /* ── 성동구 ── */
+  { id: "t11", name: "인생한모금 왕십리점",         lat: 37.5613, lng: 126.9370, address: "성동구 행당동 5",          shopType: "무인" },
+  { id: "t12", name: "전자담배 성수전문점",         lat: 37.5445, lng: 127.0558, address: "성동구 성수동1가 670",     shopType: "유인" },
+  { id: "t13", name: "무인전자담배 금호점",         lat: 37.5543, lng: 127.0192, address: "성동구 금호동4가 10",      shopType: "무인" },
+
+  /* ── 광진구 ── */
+  { id: "t14", name: "무인전자담배 건대입구점",     lat: 37.5402, lng: 127.0697, address: "광진구 화양동 48",         shopType: "무인" },
+  { id: "t15", name: "전담전담 건대점",             lat: 37.5398, lng: 127.0726, address: "광진구 자양동 226",        shopType: "유인" },
+  { id: "t16", name: "무인전자담배 구의역점",       lat: 37.5476, lng: 127.0952, address: "광진구 구의동 21",         shopType: "무인" },
+
+  /* ── 동대문구 ── */
+  { id: "t17", name: "무인전자담배 전농동점",       lat: 37.5775, lng: 127.0558, address: "동대문구 전농동 223",      shopType: "무인" },
+  { id: "t18", name: "전자담배 장한평전문점",       lat: 37.5640, lng: 127.0826, address: "동대문구 장안동 460",      shopType: "유인" },
+  { id: "t19", name: "인생한모금 신설동점",         lat: 37.5766, lng: 127.0278, address: "동대문구 신설동 97",       shopType: "무인" },
+
+  /* ── 중랑구 ── */
+  { id: "t20", name: "무인전자담배 상봉역점",       lat: 37.5957, lng: 127.0861, address: "중랑구 상봉동 37",         shopType: "무인" },
+  { id: "t21", name: "무인전자담배 망우역점",       lat: 37.6066, lng: 127.1000, address: "중랑구 망우동 104",        shopType: "무인" },
+
+  /* ── 성북구 ── */
+  { id: "t22", name: "인생한모금 길음역점",         lat: 37.6034, lng: 127.0228, address: "성북구 길음동 1310",       shopType: "무인" },
+  { id: "t23", name: "전자담배 돌곶이전문점",       lat: 37.6063, lng: 127.0594, address: "성북구 석관동 181",        shopType: "유인" },
+  { id: "t24", name: "무인전자담배 석계점",         lat: 37.6147, lng: 127.0668, address: "성북구 석관동 302",        shopType: "무인" },
+
+  /* ── 강북구 ── */
+  { id: "t25", name: "무인전자담배 수유역점",       lat: 37.6387, lng: 127.0254, address: "강북구 수유동 170",        shopType: "무인" },
+  { id: "t26", name: "전자담배 미아전문점",         lat: 37.6484, lng: 127.0291, address: "강북구 미아동 794",        shopType: "유인" },
+
+  /* ── 도봉구 ── */
+  { id: "t27", name: "무인전자담배 창동역점",       lat: 37.6527, lng: 127.0478, address: "도봉구 창동 23",           shopType: "무인" },
+  { id: "t28", name: "인생한모금 도봉산점",         lat: 37.6693, lng: 127.0461, address: "도봉구 도봉동 552",        shopType: "무인" },
+
+  /* ── 노원구 ── */
+  { id: "t29", name: "무인전자담배 노원역점",       lat: 37.6559, lng: 127.0606, address: "노원구 상계동 714",        shopType: "무인" },
+  { id: "t30", name: "무인전자담배 상계역점",       lat: 37.6687, lng: 127.0747, address: "노원구 상계동 1204",       shopType: "무인" },
+  { id: "t31", name: "전자담배 중계전문점",         lat: 37.6612, lng: 127.0703, address: "노원구 중계동 391",        shopType: "유인" },
+
+  /* ── 은평구 ── */
+  { id: "t32", name: "무인전자담배 연신내점",       lat: 37.6191, lng: 126.9222, address: "은평구 갈현동 396",        shopType: "무인" },
+  { id: "t33", name: "전자담배 불광전문점",         lat: 37.6106, lng: 126.9295, address: "은평구 불광동 184",        shopType: "유인" },
+
+  /* ── 서대문구 ── */
+  { id: "t34", name: "전담전담 신촌점",             lat: 37.5553, lng: 126.9368, address: "서대문구 창천동 57",       shopType: "유인" },
+  { id: "t35", name: "무인전자담배 이대역점",       lat: 37.5566, lng: 126.9463, address: "서대문구 대현동 13",       shopType: "무인" },
+  { id: "t36", name: "무인전자담배 홍제역점",       lat: 37.5896, lng: 126.9452, address: "서대문구 홍제동 330",      shopType: "무인" },
+
+  /* ── 마포구 ── */
+  { id: "t37", name: "무인전자담배 홍대입구점",     lat: 37.5572, lng: 126.9240, address: "마포구 동교동 165",        shopType: "무인" },
+  { id: "t38", name: "인생한모금 합정점",           lat: 37.5493, lng: 126.9138, address: "마포구 합정동 399",        shopType: "무인" },
+  { id: "t39", name: "전자담배 마포역전문점",       lat: 37.5549, lng: 126.9235, address: "마포구 도화동 558",        shopType: "유인" },
+  { id: "t40", name: "무인전자담배 상암DMC점",      lat: 37.5774, lng: 126.8904, address: "마포구 상암동 1615",       shopType: "무인" },
+
+  /* ── 양천구 ── */
+  { id: "t41", name: "무인전자담배 목동역점",       lat: 37.5248, lng: 126.8758, address: "양천구 목동 912",          shopType: "무인" },
+  { id: "t42", name: "전자담배 신정전문점",         lat: 37.5198, lng: 126.8648, address: "양천구 신정동 322",        shopType: "유인" },
+  { id: "t43", name: "인생한모금 오목교점",         lat: 37.5281, lng: 126.8656, address: "양천구 목동 908",          shopType: "무인" },
+
+  /* ── 강서구 ── */
+  { id: "t44", name: "무인전자담배 발산역점",       lat: 37.5589, lng: 126.8389, address: "강서구 우장산동 72",       shopType: "무인" },
+  { id: "t45", name: "전담전담 화곡점",             lat: 37.5447, lng: 126.8522, address: "강서구 화곡동 982",        shopType: "유인" },
+  { id: "t46", name: "무인전자담배 마곡나루점",     lat: 37.5589, lng: 126.8277, address: "강서구 마곡동 797",        shopType: "무인" },
+
+  /* ── 구로구 ── */
+  { id: "t47", name: "무인전자담배 구로디지털점",   lat: 37.4853, lng: 126.9015, address: "구로구 구로동 184",        shopType: "무인" },
+  { id: "t48", name: "인생한모금 신도림점",         lat: 37.5083, lng: 126.8912, address: "구로구 신도림동 337",      shopType: "무인" },
+  { id: "t49", name: "전자담배 개봉전문점",         lat: 37.4988, lng: 126.8567, address: "구로구 개봉동 76",         shopType: "유인" },
+
+  /* ── 금천구 ── */
+  { id: "t50", name: "무인전자담배 가산디지털점",   lat: 37.4773, lng: 126.8852, address: "금천구 가산동 481",        shopType: "무인" },
+  { id: "t51", name: "무인전자담배 독산역점",       lat: 37.4739, lng: 126.8928, address: "금천구 독산동 993",        shopType: "무인" },
+
+  /* ── 영등포구 ── */
+  { id: "t52", name: "무인전자담배 여의도점",       lat: 37.5216, lng: 126.9240, address: "영등포구 여의도동 36",     shopType: "무인" },
+  { id: "t53", name: "전자담배 영등포전문점",       lat: 37.5165, lng: 126.9063, address: "영등포구 영등포동4가 438", shopType: "유인" },
+  { id: "t54", name: "인생한모금 신길역점",         lat: 37.5142, lng: 126.9239, address: "영등포구 신길동 336",      shopType: "무인" },
+
+  /* ── 동작구 ── */
+  { id: "t55", name: "무인전자담배 사당역점",       lat: 37.4769, lng: 126.9814, address: "동작구 사당동 221",        shopType: "무인" },
+  { id: "t56", name: "인생한모금 노량진점",         lat: 37.5143, lng: 126.9426, address: "동작구 노량진동 32",       shopType: "무인" },
+  { id: "t57", name: "전자담배 이수전문점",         lat: 37.4870, lng: 126.9811, address: "동작구 사당동 1038",       shopType: "유인" },
+
+  /* ── 관악구 ── */
+  { id: "t58", name: "무인전자담배 봉천동점",       lat: 37.4762, lng: 126.9468, address: "관악구 봉천동 1681",       shopType: "무인" },
+  { id: "t59", name: "인생한모금 신림역점",         lat: 37.4848, lng: 126.9293, address: "관악구 신림동 536",        shopType: "무인" },
+  { id: "t60", name: "전자담배 서울대입구전문점",   lat: 37.4809, lng: 126.9526, address: "관악구 봉천동 862",        shopType: "유인" },
+
+  /* ── 서초구 ── */
+  { id: "t61", name: "무인전자담배 교대역점",       lat: 37.4939, lng: 127.0139, address: "서초구 서초동 1330",       shopType: "무인" },
+  { id: "t62", name: "전자담배 강남전문점",         lat: 37.5005, lng: 127.0283, address: "서초구 서초동 1321",       shopType: "유인" },
+  { id: "t63", name: "무인전자담배 반포점",         lat: 37.5099, lng: 127.0119, address: "서초구 반포동 23",         shopType: "무인" },
+  { id: "t64", name: "인생한모금 양재역점",         lat: 37.4849, lng: 127.0344, address: "서초구 양재동 235",        shopType: "무인" },
+
+  /* ── 강남구 ── */
+  { id: "t65", name: "무인전자담배 강남역점",       lat: 37.4979, lng: 127.0276, address: "강남구 역삼동 832",        shopType: "무인" },
+  { id: "t66", name: "전담전담 선릉점",             lat: 37.5043, lng: 127.0490, address: "강남구 삼성동 157",        shopType: "유인" },
+  { id: "t67", name: "무인전자담배 대치동점",       lat: 37.4952, lng: 127.0608, address: "강남구 대치동 947",        shopType: "무인" },
+  { id: "t68", name: "전자담배 압구정전문점",       lat: 37.5268, lng: 127.0290, address: "강남구 압구정동 454",      shopType: "유인" },
+  { id: "t69", name: "인생한모금 삼성역점",         lat: 37.5088, lng: 127.0632, address: "강남구 삼성동 41",         shopType: "무인" },
+
+  /* ── 송파구 ── */
+  { id: "t70", name: "무인전자담배 잠실역점",       lat: 37.5122, lng: 127.0820, address: "송파구 잠실동 186",        shopType: "무인" },
+  { id: "t71", name: "전자담배 문정전문점",         lat: 37.4831, lng: 127.1264, address: "송파구 문정동 150",        shopType: "유인" },
+  { id: "t72", name: "인생한모금 가락시장점",       lat: 37.4920, lng: 127.1243, address: "송파구 가락동 93",         shopType: "무인" },
+  { id: "t73", name: "무인전자담배 석촌호수점",     lat: 37.5087, lng: 127.1007, address: "송파구 석촌동 105",        shopType: "무인" },
+
+  /* ── 강동구 ── */
+  { id: "t74", name: "무인전자담배 천호역점",       lat: 37.5392, lng: 127.1237, address: "강동구 천호동 455",        shopType: "무인" },
+  { id: "t75", name: "전자담배 강동전문점",         lat: 37.5317, lng: 127.1463, address: "강동구 강동동 29",         shopType: "유인" },
+  { id: "t76", name: "인생한모금 명일역점",         lat: 37.5553, lng: 127.1336, address: "강동구 명일동 293",        shopType: "무인" },
+  { id: "t77", name: "무인전자담배 길동점",         lat: 37.5397, lng: 127.1354, address: "강동구 길동 440",          shopType: "무인" },
 ];
