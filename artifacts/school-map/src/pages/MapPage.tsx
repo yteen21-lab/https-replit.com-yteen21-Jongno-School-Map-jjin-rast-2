@@ -12,6 +12,7 @@ import {
 import { RefreshCw, School as SchoolIcon, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import ymcaLogo from "@assets/ymca로고_1776149746053.jpg";
 import kctcreLogo from "@assets/image_1776150010933.png";
+import DistrictMiniMap from "@/components/DistrictMiniMap";
 
 const SIDEBAR_W = 160;
 
@@ -71,56 +72,58 @@ function DistrictPanel({ school, allSchools, tobaccoShops, onClose }: DistrictPa
   });
 
   return (
-    <div className="absolute bottom-6 right-4 z-[1000] w-52 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden">
-      <div className="px-4 py-2.5 flex items-start justify-between" style={{ background: "linear-gradient(135deg,#1e293b,#334155)" }}>
-        <div>
+    <div
+      className="absolute bottom-6 right-4 z-[1000] bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col"
+      style={{ width: "260px", height: "260px" }}
+    >
+      {/* Header */}
+      <div
+        className="px-3 py-2 flex items-center justify-between flex-shrink-0"
+        style={{ background: "linear-gradient(135deg,#1e293b,#334155)" }}
+      >
+        <div className="min-w-0">
           <p className="text-white font-bold text-sm leading-tight">{district}</p>
-          <p className="text-slate-300 text-[11px] leading-tight mt-0.5">{school.name}</p>
+          <p className="text-slate-300 text-[10px] leading-tight truncate">{school.name}</p>
         </div>
-        <button onClick={onClose} className="text-slate-400 hover:text-white text-xl leading-none ml-2">×</button>
+        <button onClick={onClose} className="text-slate-400 hover:text-white text-xl leading-none ml-2 flex-shrink-0">×</button>
       </div>
 
-      <div className="p-3 space-y-3">
-        <div>
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">학교 현황</p>
-          <div className="grid grid-cols-3 gap-1">
-            {(["초등학교","중학교","고등학교"] as const).map((type) => (
-              <div key={type} className="text-center bg-slate-50 rounded-lg py-1.5">
-                <div
-                  className="text-base font-bold"
-                  style={{ color: SCHOOL_TYPE_COLORS[type] }}
-                >
-                  {schoolCounts[type]}
+      {/* Mini Map */}
+      <div className="flex-1 relative">
+        <DistrictMiniMap schools={distSchools} tobaccoShops={distTobacco} />
+
+        {/* Legend overlay on mini-map */}
+        <div className="absolute top-1.5 left-1.5 z-[2000] bg-white/90 backdrop-blur-sm rounded-md px-1.5 py-1 shadow text-[8px] space-y-0.5">
+          {(["초등학교","중학교","고등학교"] as const).map((type) => (
+            <div key={type} className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: SCHOOL_TYPE_COLORS[type] }} />
+              <span className="text-slate-700">{type.replace("학교","")} {schoolCounts[type]}</span>
+            </div>
+          ))}
+          <div className="border-t border-slate-200 mt-0.5 pt-0.5 space-y-0.5">
+            {(["50m이내","200m이내","외부"] as const).map((zone) => (
+              tobaccoCounts[zone] > 0 && (
+                <div key={zone} className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-sm inline-block flex-shrink-0" style={{ backgroundColor: TOBACCO_ZONE_COLORS[zone] }} />
+                  <span className="text-slate-700">🚬{zone} {tobaccoCounts[zone]}</span>
                 </div>
-                <div className="text-[9px] text-slate-500">{type.replace("학교","")}</div>
-              </div>
+              )
             ))}
           </div>
         </div>
+      </div>
 
-        <div className="border-t border-slate-100 pt-2">
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">전자담배샵</p>
-          <div className="space-y-1">
-            {(["50m이내","200m이내","외부"] as const).map((zone) => (
-              <div key={zone} className="flex items-center gap-1.5">
-                <span
-                  className="inline-block w-2.5 h-2.5 rounded-sm flex-shrink-0"
-                  style={{ backgroundColor: TOBACCO_ZONE_COLORS[zone] }}
-                />
-                <span className="text-[10px] text-slate-600 flex-1">{zone}</span>
-                <span
-                  className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white"
-                  style={{ backgroundColor: TOBACCO_ZONE_COLORS[zone] }}
-                >
-                  {tobaccoCounts[zone]}곳
-                </span>
-              </div>
-            ))}
+      {/* Count bar at bottom */}
+      <div className="flex-shrink-0 border-t border-slate-100 bg-slate-50 grid grid-cols-4 divide-x divide-slate-200">
+        {(["초등학교","중학교","고등학교"] as const).map((type) => (
+          <div key={type} className="text-center py-1.5">
+            <div className="text-sm font-bold" style={{ color: SCHOOL_TYPE_COLORS[type] }}>{schoolCounts[type]}</div>
+            <div className="text-[8px] text-slate-400">{type.replace("학교","")}</div>
           </div>
-          <div className="mt-1.5 pt-1.5 border-t border-slate-100 flex justify-between items-center">
-            <span className="text-[10px] text-slate-500">합계</span>
-            <span className="text-[11px] font-bold text-slate-700">{distTobacco.length}곳</span>
-          </div>
+        ))}
+        <div className="text-center py-1.5">
+          <div className="text-sm font-bold text-orange-500">{distTobacco.length}</div>
+          <div className="text-[8px] text-slate-400">담배샵</div>
         </div>
       </div>
     </div>
