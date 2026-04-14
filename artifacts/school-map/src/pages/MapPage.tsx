@@ -10,35 +10,29 @@ import {
   SCHOOL_TYPE_COLORS, TOBACCO_ZONE_COLORS,
 } from "@/types/school";
 import { RefreshCw, School as SchoolIcon, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import ymcaLogo from "@assets/ymca로고_1776149746053.jpg";
+import kctcreLogo from "@assets/image_1776150010933.png";
 
 const SIDEBAR_W = 160;
 
 function LogoSection() {
   return (
     <div className="px-2 py-2 border-t border-slate-100 space-y-1.5">
-      <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-100 rounded-lg p-1.5">
-        <div
-          className="flex-shrink-0 w-8 h-8 rounded flex items-center justify-center text-white font-black text-sm"
-          style={{ background: "linear-gradient(135deg,#1a56a8,#3b82f6)" }}
-        >
-          Y
-        </div>
-        <div className="min-w-0">
-          <p className="text-[9px] font-bold text-blue-900 leading-tight">서울YMCA</p>
-          <p className="text-[8px] text-blue-500 leading-tight">© 2024 Seoul YMCA</p>
-        </div>
+      <div className="bg-white border border-slate-100 rounded-lg p-1.5 flex items-center justify-center">
+        <img
+          src={ymcaLogo}
+          alt="서울YMCA"
+          className="w-full object-contain"
+          style={{ maxHeight: "44px" }}
+        />
       </div>
-      <div className="flex items-center gap-1.5 bg-green-50 border border-green-100 rounded-lg p-1.5">
-        <div
-          className="flex-shrink-0 w-8 h-8 rounded flex items-center justify-center text-white font-bold text-[8px] leading-tight text-center"
-          style={{ background: "linear-gradient(135deg,#166534,#22c55e)" }}
-        >
-          담배<br/>규제
-        </div>
-        <div className="min-w-0">
-          <p className="text-[9px] font-bold text-green-900 leading-tight">한국담배규제<br/>연구교육센터</p>
-          <p className="text-[8px] text-green-500 leading-tight">© 2024 KTREC</p>
-        </div>
+      <div className="bg-white border border-slate-100 rounded-lg p-1.5 flex items-center justify-center">
+        <img
+          src={kctcreLogo}
+          alt="한국담배규제연구교육센터"
+          className="w-full object-contain"
+          style={{ maxHeight: "44px" }}
+        />
       </div>
     </div>
   );
