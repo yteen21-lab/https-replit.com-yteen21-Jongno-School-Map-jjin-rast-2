@@ -187,8 +187,8 @@ export default function MapPage() {
     return () => { window.removeEventListener("mousemove", onMouseMove); window.removeEventListener("mouseup", onMouseUp); };
   }, []);
 
-  const isCustomSchools  = schools[0]?.id?.startsWith("excel-") ?? false;
-  const isCustomTobacco  = tobaccoShops[0]?.id?.startsWith("excel-") ?? false;
+  const isCustomSchools  = schools.some(s => s.id.startsWith("excel-"));
+  const isCustomTobacco  = tobaccoShops.some(s => s.id.startsWith("excel-"));
 
   const filteredSchools = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -218,16 +218,22 @@ export default function MapPage() {
   }, [selectedSchool, schools]);
 
   const handleSchoolsLoaded = useCallback((newSchools: School[]) => {
-    setSchools(newSchools);
-    saveToStorage(STORAGE_KEY_SCHOOLS, newSchools);
+    setSchools((prev) => {
+      const merged = [...prev, ...newSchools];
+      saveToStorage(STORAGE_KEY_SCHOOLS, merged);
+      return merged;
+    });
     setSelectedSchool(null);
     setActiveTab("list");
     setSearchQuery("");
   }, []);
 
   const handleTobaccoShopsLoaded = useCallback((newShops: TobaccoShop[]) => {
-    setTobaccoShops(newShops);
-    saveToStorage(STORAGE_KEY_TOBACCO, newShops);
+    setTobaccoShops((prev) => {
+      const merged = [...prev, ...newShops];
+      saveToStorage(STORAGE_KEY_TOBACCO, merged);
+      return merged;
+    });
   }, []);
 
   const handleReset = useCallback(() => {
@@ -346,10 +352,14 @@ export default function MapPage() {
                         </button>
                       </div>
                       <div className="text-green-600 space-y-0.5">
-                        {isCustomSchools && <p>• 학교 데이터: {schools.length}개 (직접 업로드)</p>}
-                        {isCustomTobacco && <p>• 담배샵 데이터: {tobaccoShops.length}개 (직접 업로드)</p>}
+                        {isCustomSchools && (
+                          <p>• 학교: 샘플 {SAMPLE_SCHOOLS.length}개 + 추가 {schools.filter(s => s.id.startsWith("excel-")).length}개 = 총 {schools.length}개</p>
+                        )}
+                        {isCustomTobacco && (
+                          <p>• 담배샵: 샘플 {SAMPLE_TOBACCO_SHOPS.length}개 + 추가 {tobaccoShops.filter(s => s.id.startsWith("excel-")).length}개 = 총 {tobaccoShops.length}개</p>
+                        )}
                       </div>
-                      <p className="text-green-500 mt-1">새 파일 업로드 시 자동 덮어씀</p>
+                      <p className="text-green-500 mt-1">새 파일 업로드 시 기존 데이터에 추가됨</p>
                     </div>
                   )}
                   <ExcelUploader

@@ -133,7 +133,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
             const district = distKey ? String(row[distKey] || "").trim() || undefined : undefined;
             if (!name || isNaN(lat) || isNaN(lng)) return null;
             if (lat < 30 || lat > 40 || lng < 120 || lng > 135) return null;
-            return { id: `excel-s${i}`, name, lat, lng, type: detectSchoolType(name, typeStr), district } as School;
+            return { id: `excel-s${Date.now()}-${i}`, name, lat, lng, type: detectSchoolType(name, typeStr), district } as School;
           }).filter(Boolean) as School[];
 
           if (schools.length === 0) { setSchoolError("유효한 데이터가 없습니다. 위도/경도를 확인해 주세요."); return; }
@@ -192,7 +192,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
             const shopType = autoDetectShopType(name, rawType);
             if (!name || isNaN(lat) || isNaN(lng)) return null;
             if (lat < 30 || lat > 40 || lng < 120 || lng > 135) return null;
-            return { id: `excel-t${i}`, name, lat, lng, address, shopType } as TobaccoShop;
+            return { id: `excel-t${Date.now()}-${i}`, name, lat, lng, address, shopType } as TobaccoShop;
           }).filter(Boolean) as TobaccoShop[];
 
           if (shops.length === 0) { setTobaccoError("유효한 데이터가 없습니다. 위도/경도를 확인해 주세요."); return; }
@@ -260,7 +260,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
 
           {schoolSuccess !== null && (
             <div className="bg-green-50 border border-green-200 rounded-lg px-2 py-1.5">
-              <p className="text-[10px] text-green-700 font-semibold">✓ 학교 {schoolSuccess}개 로드됨</p>
+              <p className="text-[10px] text-green-700 font-semibold">✓ 학교 {schoolSuccess}개 추가됨</p>
             </div>
           )}
           {schoolError && (
@@ -297,7 +297,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
 
           {tobaccoSuccess !== null && (
             <div className="bg-orange-50 border border-orange-200 rounded-lg px-2 py-1.5 space-y-0.5">
-              <p className="text-[10px] text-orange-700 font-semibold">✓ 업소 {tobaccoSuccess.total}개 로드·저장됨</p>
+              <p className="text-[10px] text-orange-700 font-semibold">✓ 업소 {tobaccoSuccess.total}개 추가됨</p>
               <p className="text-[10px] text-slate-500">🚬 무인 {tobaccoSuccess.muIn}개 · 🏪 유인 {tobaccoSuccess.yuIn}개</p>
             </div>
           )}
