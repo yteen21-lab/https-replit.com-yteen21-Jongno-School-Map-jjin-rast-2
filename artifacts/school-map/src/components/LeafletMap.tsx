@@ -143,20 +143,38 @@ export default function LeafletMap({
     tobaccoShops.forEach((shop) => {
       const zone = getTobaccoZone(shop, schools);
       const color = TOBACCO_ZONE_COLORS[zone];
-      const shortName = shop.name.replace("무인전자담배 ", "").replace("무인담배 ", "");
+      const isUnmanned = shop.shopType !== "유인";
+      const shopTypeLabel = isUnmanned ? "무인" : "유인";
+      const shopTypeColor = isUnmanned ? "#475569" : "#7C3AED";
+      const shopEmoji = isUnmanned ? "🚬" : "🏪";
+      const shortName = shop.name
+        .replace("무인전자담배 ", "")
+        .replace("무인담배 ", "")
+        .replace("담배샵 ", "");
 
       const icon = L.divIcon({
         className: "",
         html: `
           <div style="display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;">
-            <div style="
-              width:28px;height:28px;
-              background:${color};border:3px solid white;
-              border-radius:6px;
-              box-shadow:0 3px 8px rgba(0,0,0,0.5);
-              display:flex;align-items:center;justify-content:center;
-              font-size:14px;line-height:1;
-            ">🚬</div>
+            <div style="position:relative;width:28px;height:28px;">
+              <div style="
+                width:28px;height:28px;
+                background:${color};border:3px solid white;
+                border-radius:6px;
+                box-shadow:0 3px 8px rgba(0,0,0,0.5);
+                display:flex;align-items:center;justify-content:center;
+                font-size:14px;line-height:1;
+              ">${shopEmoji}</div>
+              <div style="
+                position:absolute;top:-6px;right:-8px;
+                background:${shopTypeColor};color:white;
+                font-size:8px;font-weight:700;
+                border-radius:3px;padding:1px 3px;
+                font-family:'Noto Sans KR',sans-serif;
+                border:1px solid white;
+                line-height:1.2;
+              ">${shopTypeLabel}</div>
+            </div>
             <div style="
               background:${color};color:white;
               border-radius:4px;
@@ -181,11 +199,21 @@ export default function LeafletMap({
 
       marker.bindPopup(`
         <div style="font-family:'Noto Sans KR',sans-serif;min-width:160px;">
-          <p style="font-weight:700;font-size:13px;margin:0 0 4px">${shop.name}</p>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+            <span style="font-weight:700;font-size:13px;">${shop.name}</span>
+          </div>
+          <div style="margin-bottom:6px;">
+            <span style="
+              display:inline-block;
+              background:${shopTypeColor};color:white;
+              font-size:10px;font-weight:700;
+              border-radius:4px;padding:2px 6px;
+            ">${isUnmanned ? "🚬 무인전자담배샵" : "🏪 유인담배샵"}</span>
+          </div>
           ${shop.address ? `<p style="font-size:11px;color:#64748b;margin:0 0 6px">${shop.address}</p>` : ""}
           <p style="font-size:12px;font-weight:600;color:${color};margin:0">${zoneLabel}</p>
         </div>
-      `, { maxWidth: 220 });
+      `, { maxWidth: 240 });
 
       marker.on("click", (e) => e.originalEvent.stopPropagation());
 

@@ -117,16 +117,20 @@ function DistrictPanel({ school, allSchools, tobaccoShops, onClose }: DistrictPa
       </div>
 
       {/* Count bar at bottom */}
-      <div className="flex-shrink-0 border-t border-slate-100 bg-slate-50 grid grid-cols-4 divide-x divide-slate-200">
+      <div className="flex-shrink-0 border-t border-slate-100 bg-slate-50 grid grid-cols-5 divide-x divide-slate-200">
         {(["초등학교","중학교","고등학교"] as const).map((type) => (
           <div key={type} className="text-center py-1.5">
-            <div className="text-sm font-bold" style={{ color: SCHOOL_TYPE_COLORS[type] }}>{schoolCounts[type]}</div>
-            <div className="text-[8px] text-slate-400">{type.replace("학교","")}</div>
+            <div className="text-xs font-bold" style={{ color: SCHOOL_TYPE_COLORS[type] }}>{schoolCounts[type]}</div>
+            <div className="text-[7px] text-slate-400">{type.replace("학교","")}</div>
           </div>
         ))}
         <div className="text-center py-1.5">
-          <div className="text-sm font-bold text-orange-500">{distTobacco.length}</div>
-          <div className="text-[8px] text-slate-400">담배샵</div>
+          <div className="text-xs font-bold text-slate-600">{distTobacco.filter(s => s.shopType !== "유인").length}</div>
+          <div className="text-[7px] text-slate-400">무인</div>
+        </div>
+        <div className="text-center py-1.5">
+          <div className="text-xs font-bold text-purple-600">{distTobacco.filter(s => s.shopType === "유인").length}</div>
+          <div className="text-[7px] text-slate-400">유인</div>
         </div>
       </div>
     </div>
@@ -314,15 +318,15 @@ export default function MapPage() {
                 })}
               </div>
               <div className="border-t border-slate-200 pt-1.5">
-                <p className="text-[9px] text-slate-400 font-semibold text-center mb-1">🚬 전자담배</p>
+                <p className="text-[9px] text-slate-400 font-semibold text-center mb-1">🚬 담배샵</p>
                 <div className="grid grid-cols-2 gap-1 text-center">
                   <div>
-                    <div className="text-sm font-bold text-sky-600">{tobaccoShops.filter(s => s.shopType === "온라인").length}</div>
-                    <div className="text-[9px] text-slate-400">온라인</div>
+                    <div className="text-sm font-bold text-slate-600">{tobaccoShops.filter(s => s.shopType === "무인").length}</div>
+                    <div className="text-[9px] text-slate-400">무인</div>
                   </div>
                   <div>
-                    <div className="text-sm font-bold text-orange-500">{tobaccoShops.filter(s => s.shopType !== "온라인").length}</div>
-                    <div className="text-[9px] text-slate-400">오프라인</div>
+                    <div className="text-sm font-bold text-orange-500">{tobaccoShops.filter(s => s.shopType === "유인").length}</div>
+                    <div className="text-[9px] text-slate-400">유인</div>
                   </div>
                 </div>
               </div>

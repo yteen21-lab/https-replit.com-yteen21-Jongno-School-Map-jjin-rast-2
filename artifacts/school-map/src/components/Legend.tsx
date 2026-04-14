@@ -137,9 +137,9 @@ export default function Legend({
         </ul>
       </div>
 
-      {/* 무인전자담배 */}
+      {/* 담배샵 */}
       <div className="border-t border-slate-100 pt-3">
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">무인전자담배</p>
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">담배샵</p>
         <ul className="space-y-1.5">
           <li>
             <button

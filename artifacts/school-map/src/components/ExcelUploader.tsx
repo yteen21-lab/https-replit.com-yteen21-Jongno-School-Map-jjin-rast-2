@@ -140,7 +140,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
             const lng     = parseFloat(String(row[lngKey!] || ""));
             const address = addressKey ? String(row[addressKey] || "").trim() || undefined : undefined;
             const rawType = shopTypeKey ? String(row[shopTypeKey] || "").trim() : "";
-            const shopType: "온라인" | "오프라인" = rawType.includes("온라인") || rawType.toLowerCase().includes("online") ? "온라인" : "오프라인";
+            const shopType: "무인" | "유인" = rawType.includes("유인") || rawType.toLowerCase().includes("staff") || rawType.toLowerCase().includes("manned") ? "유인" : "무인";
             if (!name || isNaN(lat) || isNaN(lng)) return null;
             if (lat < 30 || lat > 40 || lng < 120 || lng > 135) return null;
             return { id: `excel-t${i}`, name, lat, lng, address, shopType } as TobaccoShop;
@@ -261,7 +261,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
             <p>• 이름: <span className="font-mono">업소명 / 매장명 / 상호명</span></p>
             <p>• 위치: <span className="font-mono">위도, 경도</span> (필수)</p>
             <p>• 선택: <span className="font-mono">주소, 유형</span></p>
-            <p className="text-slate-400">유형 값: <span className="font-mono">온라인 / 오프라인</span></p>
+            <p className="text-slate-400">유형 값: <span className="font-mono">무인 / 유인</span></p>
           </div>
         </div>
       )}
