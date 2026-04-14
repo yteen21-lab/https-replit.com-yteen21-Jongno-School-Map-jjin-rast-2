@@ -93,6 +93,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
   const [isDraggingTobacco, setIsDraggingTobacco] = useState(false);
   const [schoolSuccess, setSchoolSuccess] = useState<number | null>(null);
   const [tobaccoSuccess, setTobaccoSuccess] = useState<{ total: number; muIn: number; yuIn: number } | null>(null);
+  const [shopTypeOverride, setShopTypeOverride] = useState<"auto" | "무인" | "유인">("auto");
 
   const processSchoolFile = useCallback(
     (file: File) => {
@@ -189,7 +190,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
             const lng     = parseFloat(String(row[lngKey!] || ""));
             const address = addressKey ? String(row[addressKey] || "").trim() || undefined : undefined;
             const rawType = shopTypeKey ? String(row[shopTypeKey] || "").trim() : "";
-            const shopType = autoDetectShopType(name, rawType);
+            const shopType = shopTypeOverride !== "auto" ? shopTypeOverride : autoDetectShopType(name, rawType);
             if (!name || isNaN(lat) || isNaN(lng)) return null;
             if (lat < 30 || lat > 40 || lng < 120 || lng > 135) return null;
             return { id: `excel-t${Date.now()}-${i}`, name, lat, lng, address, shopType } as TobaccoShop;
@@ -206,7 +207,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
       };
       reader.readAsArrayBuffer(file);
     },
-    [onTobaccoShopsLoaded]
+    [onTobaccoShopsLoaded, shopTypeOverride]
   );
 
   const handleSchoolFile = useCallback((file: File | undefined) => {
@@ -281,6 +282,41 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
       {/* Tobacco Upload */}
       {mode === "tobacco" && (
         <div className="space-y-2">
+
+          {/* 매장 유형 강제 지정 옵션 */}
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 space-y-1.5">
+            <p className="text-[10px] font-semibold text-slate-600">업로드 매장 유형 지정</p>
+            <div className="flex gap-1.5">
+              {([
+                { value: "auto",  label: "🔍 자동 감지",     desc: "컬럼·이름으로 판별" },
+                { value: "유인",  label: "🏪 전체 오프라인",  desc: "모두 오프라인매장" },
+                { value: "무인",  label: "🚬 전체 무인자판기", desc: "모두 무인자판기" },
+              ] as const).map(({ value, label, desc }) => (
+                <button
+                  key={value}
+                  onClick={() => setShopTypeOverride(value)}
+                  className={`flex-1 rounded-md border py-1.5 px-1 text-center transition-all ${
+                    shopTypeOverride === value
+                      ? value === "유인"
+                        ? "bg-purple-100 border-purple-400 text-purple-700"
+                        : value === "무인"
+                        ? "bg-blue-100 border-blue-400 text-blue-700"
+                        : "bg-green-100 border-green-400 text-green-700"
+                      : "bg-white border-slate-200 text-slate-500 hover:bg-slate-100"
+                  }`}
+                >
+                  <p className="text-[10px] font-semibold leading-tight">{label}</p>
+                  <p className="text-[9px] leading-tight mt-0.5 opacity-70">{desc}</p>
+                </button>
+              ))}
+            </div>
+            {shopTypeOverride !== "auto" && (
+              <p className="text-[9px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-1">
+                ⚠️ 파일 내 매장유형 컬럼 무시 — 전체 <strong>{shopTypeOverride === "유인" ? "오프라인매장(유인)" : "무인자판기(무인)"}</strong>으로 처리
+              </p>
+            )}
+          </div>
+
           <div
             onDragOver={(e) => { e.preventDefault(); setIsDraggingTobacco(true); }}
             onDragLeave={() => setIsDraggingTobacco(false)}
