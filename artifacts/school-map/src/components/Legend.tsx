@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { School, TobaccoShop, SCHOOL_TYPE_COLORS, TOBACCO_ZONE_COLORS, SchoolType, TobaccoZone, getTobaccoZone } from "@/types/school";
 
 interface LegendProps {
@@ -9,6 +10,36 @@ interface LegendProps {
   onToggleRadius50: () => void;
   onToggleRadius200: () => void;
   onToggleTobacco: () => void;
+}
+
+interface TooltipProps {
+  text: string;
+  children: React.ReactNode;
+}
+
+function Tooltip({ text, children }: TooltipProps) {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => setVisible(true)}
+      onMouseLeave={() => setVisible(false)}
+    >
+      {children}
+      {visible && (
+        <div
+          className="absolute right-full top-1/2 -translate-y-1/2 mr-2 z-[9999]
+            bg-slate-800 text-white text-[11px] leading-relaxed
+            rounded-lg px-3 py-2 shadow-xl w-56 pointer-events-none"
+          style={{ whiteSpace: "pre-line" }}
+        >
+          {text}
+          <div className="absolute right-[-5px] top-1/2 -translate-y-1/2 border-[5px] border-transparent border-l-slate-800" />
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function Legend({
@@ -42,6 +73,9 @@ export default function Legend({
     ["외부",     TOBACCO_ZONE_COLORS["외부"],     "정상"],
   ];
 
+  const TOOLTIP_50 = `절대보호구역 (학교보건법 제5조)\n\n학교 출입문으로부터 직선거리 50m 이내 구역.\n\n청소년 유해업소의 설치가 절대적으로 금지되며, 어떠한 예외도 허용되지 않습니다.`;
+  const TOOLTIP_200 = `상대보호구역 (학교보건법 제5조)\n\n학교 경계로부터 직선거리 200m 이내 구역 (절대보호구역 제외).\n\n교육감 또는 교육장의 심의를 거쳐 유해업소 설치 여부가 결정됩니다.`;
+
   return (
     <div className="bg-white rounded-xl shadow-lg p-4 space-y-4 min-w-[200px] max-h-[90vh] overflow-y-auto">
       {/* 학교 구분 */}
@@ -62,33 +96,43 @@ export default function Legend({
         </ul>
       </div>
 
-      {/* 반경 표시 */}
+      {/* 보호구역 표시 */}
       <div className="border-t border-slate-100 pt-3">
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">반경 표시</p>
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">보호구역 표시</p>
         <ul className="space-y-1.5">
           <li>
-            <button
-              onClick={onToggleRadius50}
-              className={`flex items-center gap-2 text-sm w-full rounded-md px-2 py-1 transition-all ${
-                showRadius50 ? "bg-red-50 text-red-700" : "text-slate-400"
-              }`}
-            >
-              <span className="flex-shrink-0 w-4 h-4 rounded-full border-2 border-red-400 bg-red-100" />
-              <span>반경 50m</span>
-              {showRadius50 && <span className="ml-auto text-xs">ON</span>}
-            </button>
+            <Tooltip text={TOOLTIP_50}>
+              <button
+                onClick={onToggleRadius50}
+                className={`flex items-center gap-2 text-sm w-full rounded-md px-2 py-1 transition-all ${
+                  showRadius50 ? "bg-red-50 text-red-700" : "text-slate-400"
+                }`}
+              >
+                <span className="flex-shrink-0 w-4 h-4 rounded-full border-2 border-red-400 bg-red-100" />
+                <span className="text-left leading-tight">
+                  <span className="block font-semibold text-[12px]">절대보호구역</span>
+                  <span className="block text-[10px] opacity-70">반경 50m</span>
+                </span>
+                {showRadius50 && <span className="ml-auto text-xs font-semibold">ON</span>}
+              </button>
+            </Tooltip>
           </li>
           <li>
-            <button
-              onClick={onToggleRadius200}
-              className={`flex items-center gap-2 text-sm w-full rounded-md px-2 py-1 transition-all ${
-                showRadius200 ? "bg-blue-50 text-blue-700" : "text-slate-400"
-              }`}
-            >
-              <span className="flex-shrink-0 w-4 h-4 rounded-full border-2 border-blue-400 bg-blue-100" />
-              <span>반경 200m</span>
-              {showRadius200 && <span className="ml-auto text-xs">ON</span>}
-            </button>
+            <Tooltip text={TOOLTIP_200}>
+              <button
+                onClick={onToggleRadius200}
+                className={`flex items-center gap-2 text-sm w-full rounded-md px-2 py-1 transition-all ${
+                  showRadius200 ? "bg-blue-50 text-blue-700" : "text-slate-400"
+                }`}
+              >
+                <span className="flex-shrink-0 w-4 h-4 rounded-full border-2 border-blue-400 bg-blue-100" />
+                <span className="text-left leading-tight">
+                  <span className="block font-semibold text-[12px]">상대보호구역</span>
+                  <span className="block text-[10px] opacity-70">반경 200m</span>
+                </span>
+                {showRadius200 && <span className="ml-auto text-xs font-semibold">ON</span>}
+              </button>
+            </Tooltip>
           </li>
         </ul>
       </div>
