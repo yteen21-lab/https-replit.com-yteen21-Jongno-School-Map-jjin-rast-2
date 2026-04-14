@@ -8,6 +8,7 @@ import {
   SAMPLE_SCHOOLS, SAMPLE_TOBACCO_SHOPS,
   getTobaccoZone, haversineDistance,
   SCHOOL_TYPE_COLORS, TOBACCO_ZONE_COLORS,
+  computeDistrictPolygon,
 } from "@/types/school";
 import { RefreshCw, School as SchoolIcon, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import ymcaLogo from "@assets/ymca로고_1776149746053.jpg";
@@ -156,6 +157,12 @@ export default function MapPage() {
     () => tobaccoShops.filter((s) => getTobaccoZone(s, schools) !== "외부").length,
     [tobaccoShops, schools]
   );
+
+  const districtPolygon = useMemo((): [number, number][] | undefined => {
+    if (!selectedSchool?.district) return undefined;
+    const distSchools = schools.filter((s) => s.district === selectedSchool.district);
+    return computeDistrictPolygon(distSchools);
+  }, [selectedSchool, schools]);
 
   const handleSchoolsLoaded = useCallback((newSchools: School[]) => {
     setSchools(newSchools);
@@ -340,6 +347,7 @@ export default function MapPage() {
           showRadius50={showRadius50}
           showRadius200={showRadius200}
           showTobacco={showTobacco}
+          districtPolygon={districtPolygon}
         />
 
         {/* Legend overlay */}

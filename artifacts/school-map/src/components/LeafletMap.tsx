@@ -14,6 +14,7 @@ interface LeafletMapProps {
   showRadius50: boolean;
   showRadius200: boolean;
   showTobacco: boolean;
+  districtPolygon?: [number, number][];
 }
 
 const SEOUL_CENTER: L.LatLngExpression = [37.5665, 126.9780];
@@ -26,11 +27,13 @@ export default function LeafletMap({
   showRadius50,
   showRadius200,
   showTobacco,
+  districtPolygon,
 }: LeafletMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const schoolLayerRef = useRef<L.Layer[]>([]);
   const tobaccoLayerRef = useRef<L.Layer[]>([]);
+  const districtLayerRef = useRef<L.Layer | null>(null);
 
   const clearSchoolLayers = useCallback(() => {
     schoolLayerRef.current.forEach((l) => l.remove());
@@ -189,6 +192,30 @@ export default function LeafletMap({
       tobaccoLayerRef.current.push(marker);
     });
   }, [tobaccoShops, schools, showTobacco]);
+
+  /* ── 구 하이라이트 폴리곤 ── */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (districtLayerRef.current) {
+      districtLayerRef.current.remove();
+      districtLayerRef.current = null;
+    }
+
+    if (!districtPolygon || districtPolygon.length < 3) return;
+
+    const poly = L.polygon(districtPolygon as L.LatLngExpression[], {
+      color: "#2563EB",
+      weight: 2,
+      opacity: 0.7,
+      fillColor: "#93C5FD",
+      fillOpacity: 0.25,
+      dashArray: "6 4",
+    }).addTo(map);
+
+    districtLayerRef.current = poly;
+  }, [districtPolygon]);
 
   useEffect(() => {
     if (!mapRef.current || !selectedSchool) return;

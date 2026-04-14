@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import L from "leaflet";
 import {
   School, TobaccoShop,
-  SCHOOL_TYPE_COLORS, TOBACCO_ZONE_COLORS, getTobaccoZone,
+  SCHOOL_TYPE_COLORS, TOBACCO_ZONE_COLORS, getTobaccoZone, computeDistrictPolygon,
 } from "@/types/school";
 
 interface DistrictMiniMapProps {
@@ -31,6 +31,19 @@ export default function DistrictMiniMap({ schools, tobaccoShops }: DistrictMiniM
     }).addTo(map);
 
     const bounds: L.LatLng[] = [];
+
+    // 구 영역 연한 파란 폴리곤
+    const polygon = computeDistrictPolygon(schools);
+    if (polygon && polygon.length >= 3) {
+      L.polygon(polygon as L.LatLngExpression[], {
+        color: "#2563EB",
+        weight: 1.5,
+        opacity: 0.6,
+        fillColor: "#93C5FD",
+        fillOpacity: 0.3,
+        dashArray: "5 3",
+      }).addTo(map);
+    }
 
     schools.forEach((school) => {
       const color = SCHOOL_TYPE_COLORS[school.type];

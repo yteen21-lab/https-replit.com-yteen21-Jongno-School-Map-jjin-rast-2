@@ -43,6 +43,60 @@ export const CIRCLE_CONFIGS: CircleConfig[] = [
   { radius: 200, color: "#3B82F6", fillColor: "#DBEAFE", label: "반경 200m" },
 ];
 
+/* ── 구 경계 폴리곤 계산 유틸 ── */
+function cross2D(O: [number, number], A: [number, number], B: [number, number]): number {
+  return (A[0] - O[0]) * (B[1] - O[1]) - (A[1] - O[1]) * (B[0] - O[0]);
+}
+
+function convexHull2D(points: [number, number][]): [number, number][] {
+  if (points.length < 3) return points;
+  const sorted = [...points].sort((a, b) => a[0] !== b[0] ? a[0] - b[0] : a[1] - b[1]);
+  const lower: [number, number][] = [];
+  for (const p of sorted) {
+    while (lower.length >= 2 && cross2D(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop();
+    lower.push(p);
+  }
+  const upper: [number, number][] = [];
+  for (const p of [...sorted].reverse()) {
+    while (upper.length >= 2 && cross2D(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop();
+    upper.push(p);
+  }
+  lower.pop();
+  upper.pop();
+  return [...lower, ...upper];
+}
+
+function expandPolygon(hull: [number, number][], buffer: number): [number, number][] {
+  const cx = hull.reduce((s, p) => s + p[0], 0) / hull.length;
+  const cy = hull.reduce((s, p) => s + p[1], 0) / hull.length;
+  return hull.map(([lat, lng]) => {
+    const dx = lat - cx;
+    const dy = lng - cy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < 0.0001) return [lat + buffer, lng + buffer] as [number, number];
+    const scale = (dist + buffer) / dist;
+    return [cx + dx * scale, cy + dy * scale] as [number, number];
+  });
+}
+
+export function computeDistrictPolygon(schools: School[]): [number, number][] | undefined {
+  if (schools.length === 0) return undefined;
+  const points: [number, number][] = schools.map(s => [s.lat, s.lng]);
+  if (points.length === 1) {
+    const [lat, lng] = points[0];
+    const R = 0.013;
+    return Array.from({ length: 32 }, (_, i) => {
+      const a = (i / 32) * 2 * Math.PI;
+      return [lat + R * Math.cos(a), lng + R * Math.sin(a)] as [number, number];
+    });
+  }
+  const pts: [number, number][] = points.length < 3
+    ? [...points, [points[0][0] + 0.001, points[1][1] - 0.001] as [number, number]]
+    : points;
+  const hull = convexHull2D(pts);
+  return expandPolygon(hull, 0.013);
+}
+
 export function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
   const φ1 = (lat1 * Math.PI) / 180;
