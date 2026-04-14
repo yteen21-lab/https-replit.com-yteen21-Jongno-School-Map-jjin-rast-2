@@ -12,18 +12,31 @@ type UploadMode = "school" | "tobacco";
 
 function autoDetectShopType(name: string, rawTypeCol: string): "무인" | "유인" {
   const col = rawTypeCol.trim();
+  // 1) 유형 컬럼 명시값 최우선
   if (col.includes("유인") || col.toLowerCase().includes("staff") || col.toLowerCase().includes("manned")) return "유인";
   if (col.includes("무인") || col.toLowerCase().includes("unmanned") || col.toLowerCase().includes("vending") || col.toLowerCase().includes("kiosk")) return "무인";
-  // 이름에서 자동 감지
+
+  // 2) 이름에서 유인(유人 직원 상주) 명확한 경우 → 유인
+  const n = name;
   if (
-    name.includes("무인") ||
-    name.includes("자판기") ||
-    name.includes("키오스크") ||
-    name.toLowerCase().includes("kiosk") ||
-    name.toLowerCase().includes("vending") ||
-    name.toLowerCase().includes("unmanned")
+    n.includes("편의점") || n.includes("마트") || n.includes("슈퍼") || n.includes("수퍼") ||
+    n.includes("세븐일레븐") || n.includes("이마트") || n.includes("롯데") ||
+    n.toLowerCase().includes("gs25") || n.toLowerCase().includes(" cu") ||
+    n.includes("유인")
+  ) return "유인";
+
+  // 3) 이름에서 무인 키워드 → 무인
+  if (
+    n.includes("무인") ||
+    n.includes("자판기") ||
+    n.includes("키오스크") ||
+    n.toLowerCase().includes("kiosk") ||
+    n.toLowerCase().includes("vending") ||
+    n.toLowerCase().includes("unmanned")
   ) return "무인";
-  return "유인";
+
+  // 4) 불명확 → 기본값 "무인" (이 앱은 무인전자담배 모니터링이 주목적)
+  return "무인";
 }
 
 const SCHOOL_TYPE_MAP: Record<string, SchoolType> = {
@@ -63,7 +76,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
   const [isDraggingSchool, setIsDraggingSchool] = useState(false);
   const [isDraggingTobacco, setIsDraggingTobacco] = useState(false);
   const [schoolSuccess, setSchoolSuccess] = useState<number | null>(null);
-  const [tobaccoSuccess, setTobaccoSuccess] = useState<number | null>(null);
+  const [tobaccoSuccess, setTobaccoSuccess] = useState<{ total: number; muIn: number; yuIn: number } | null>(null);
 
   const processSchoolFile = useCallback(
     (file: File) => {
@@ -163,7 +176,9 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
           }).filter(Boolean) as TobaccoShop[];
 
           if (shops.length === 0) { setTobaccoError("유효한 데이터가 없습니다. 위도/경도를 확인해 주세요."); return; }
-          setTobaccoSuccess(shops.length);
+          const muIn = shops.filter(s => s.shopType !== "유인").length;
+          const yuIn = shops.filter(s => s.shopType === "유인").length;
+          setTobaccoSuccess({ total: shops.length, muIn, yuIn });
           onTobaccoShopsLoaded?.(shops);
         } catch {
           setTobaccoError("파일 파싱 중 오류가 발생했습니다.");
@@ -261,8 +276,9 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
           </div>
 
           {tobaccoSuccess !== null && (
-            <div className="bg-orange-50 border border-orange-200 rounded-lg px-2 py-1.5">
-              <p className="text-[10px] text-orange-700 font-semibold">✓ 업소 {tobaccoSuccess}개 로드됨</p>
+            <div className="bg-orange-50 border border-orange-200 rounded-lg px-2 py-1.5 space-y-0.5">
+              <p className="text-[10px] text-orange-700 font-semibold">✓ 업소 {tobaccoSuccess.total}개 로드·저장됨</p>
+              <p className="text-[10px] text-slate-500">🚬 무인 {tobaccoSuccess.muIn}개 · 🏪 유인 {tobaccoSuccess.yuIn}개</p>
             </div>
           )}
           {tobaccoError && (

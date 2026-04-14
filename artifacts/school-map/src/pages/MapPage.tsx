@@ -377,7 +377,7 @@ export default function MapPage() {
                 <p className="text-[9px] text-slate-400 font-semibold text-center mb-1">🚬 담배샵</p>
                 <div className="grid grid-cols-2 gap-1 text-center">
                   <div>
-                    <div className="text-sm font-bold text-slate-600">{tobaccoShops.filter(s => s.shopType === "무인").length}</div>
+                    <div className="text-sm font-bold text-slate-600">{tobaccoShops.filter(s => s.shopType !== "유인").length}</div>
                     <div className="text-[9px] text-slate-400">무인</div>
                   </div>
                   <div>
