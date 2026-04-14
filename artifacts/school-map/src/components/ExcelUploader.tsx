@@ -322,14 +322,14 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
                   <span className="text-[9px] font-bold text-slate-500 w-3 flex-shrink-0 mt-0.5">🏪</span>
                   <div>
                     <p className="font-semibold text-purple-600">오프라인매장 → 유인</p>
-                    <p className="text-slate-400">값: <span className="font-mono">오프라인매장, 오프라인, 일반매장, 유인</span></p>
+                    <p className="text-slate-400">값: <span className="font-mono">매장유형-오프라인매장</span></p>
                   </div>
                 </div>
                 <div className="flex items-start gap-1">
                   <span className="text-[9px] font-bold text-slate-500 w-3 flex-shrink-0 mt-0.5">🚬</span>
                   <div>
                     <p className="font-semibold text-slate-600">무인자판기 → 무인</p>
-                    <p className="text-slate-400">값: <span className="font-mono">무인자판기, 자판기, 무인, 키오스크, 24시, GATE, 24</span></p>
+                    <p className="text-slate-400">값: <span className="font-mono">매장유형-무인자판기매장</span></p>
                   </div>
                 </div>
               </div>
