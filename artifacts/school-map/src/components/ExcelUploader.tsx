@@ -10,6 +10,22 @@ interface ExcelUploaderProps {
 
 type UploadMode = "school" | "tobacco";
 
+function autoDetectShopType(name: string, rawTypeCol: string): "무인" | "유인" {
+  const col = rawTypeCol.trim();
+  if (col.includes("유인") || col.toLowerCase().includes("staff") || col.toLowerCase().includes("manned")) return "유인";
+  if (col.includes("무인") || col.toLowerCase().includes("unmanned") || col.toLowerCase().includes("vending") || col.toLowerCase().includes("kiosk")) return "무인";
+  // 이름에서 자동 감지
+  if (
+    name.includes("무인") ||
+    name.includes("자판기") ||
+    name.includes("키오스크") ||
+    name.toLowerCase().includes("kiosk") ||
+    name.toLowerCase().includes("vending") ||
+    name.toLowerCase().includes("unmanned")
+  ) return "무인";
+  return "유인";
+}
+
 const SCHOOL_TYPE_MAP: Record<string, SchoolType> = {
   초: "초등학교",
   초등: "초등학교",
@@ -140,7 +156,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
             const lng     = parseFloat(String(row[lngKey!] || ""));
             const address = addressKey ? String(row[addressKey] || "").trim() || undefined : undefined;
             const rawType = shopTypeKey ? String(row[shopTypeKey] || "").trim() : "";
-            const shopType: "무인" | "유인" = rawType.includes("유인") || rawType.toLowerCase().includes("staff") || rawType.toLowerCase().includes("manned") ? "유인" : "무인";
+            const shopType = autoDetectShopType(name, rawType);
             if (!name || isNaN(lat) || isNaN(lng)) return null;
             if (lat < 30 || lat > 40 || lng < 120 || lng > 135) return null;
             return { id: `excel-t${i}`, name, lat, lng, address, shopType } as TobaccoShop;
@@ -262,6 +278,12 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
             <p>• 위치: <span className="font-mono">위도, 경도</span> (필수)</p>
             <p>• 선택: <span className="font-mono">주소, 유형</span></p>
             <p className="text-slate-400">유형 값: <span className="font-mono">무인 / 유인</span></p>
+            <div className="mt-1.5 pt-1.5 border-t border-slate-200">
+              <p className="font-semibold text-slate-500">자동 감지</p>
+              <p className="text-slate-400">유형 컬럼 없을 시 이름에서 자동 판별:</p>
+              <p>• 🚬 <span className="font-mono">무인</span>: "무인", "자판기", "키오스크" 포함</p>
+              <p>• 🏪 <span className="font-mono">유인</span>: 그 외 (일반담배샵)</p>
+            </div>
           </div>
         </div>
       )}

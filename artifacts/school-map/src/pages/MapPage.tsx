@@ -19,6 +19,25 @@ const SIDEBAR_MIN = 140;
 const SIDEBAR_MAX = 400;
 const SIDEBAR_DEFAULT = 200;
 
+const STORAGE_KEY_SCHOOLS = "schoolMap_schools_v1";
+const STORAGE_KEY_TOBACCO = "schoolMap_tobacco_v1";
+
+function loadFromStorage<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) return JSON.parse(raw) as T;
+  } catch {}
+  return fallback;
+}
+
+function saveToStorage<T>(key: string, value: T): void {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+}
+
+function clearStorage(...keys: string[]): void {
+  try { keys.forEach((k) => localStorage.removeItem(k)); } catch {}
+}
+
 function LogoSection() {
   return (
     <div className="px-2 py-2 border-t border-slate-100 space-y-1.5">
@@ -138,8 +157,12 @@ function DistrictPanel({ school, allSchools, tobaccoShops, onClose }: DistrictPa
 }
 
 export default function MapPage() {
-  const [schools, setSchools] = useState<School[]>(SAMPLE_SCHOOLS);
-  const [tobaccoShops, setTobaccoShops] = useState<TobaccoShop[]>(SAMPLE_TOBACCO_SHOPS);
+  const [schools, setSchools] = useState<School[]>(() =>
+    loadFromStorage<School[]>(STORAGE_KEY_SCHOOLS, SAMPLE_SCHOOLS)
+  );
+  const [tobaccoShops, setTobaccoShops] = useState<TobaccoShop[]>(() =>
+    loadFromStorage<TobaccoShop[]>(STORAGE_KEY_TOBACCO, SAMPLE_TOBACCO_SHOPS)
+  );
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
   const [showRadius50, setShowRadius50] = useState(true);
   const [showRadius200, setShowRadius200] = useState(true);
@@ -163,6 +186,9 @@ export default function MapPage() {
     window.addEventListener("mouseup", onMouseUp);
     return () => { window.removeEventListener("mousemove", onMouseMove); window.removeEventListener("mouseup", onMouseUp); };
   }, []);
+
+  const isCustomSchools  = schools[0]?.id?.startsWith("excel-") ?? false;
+  const isCustomTobacco  = tobaccoShops[0]?.id?.startsWith("excel-") ?? false;
 
   const filteredSchools = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -193,6 +219,7 @@ export default function MapPage() {
 
   const handleSchoolsLoaded = useCallback((newSchools: School[]) => {
     setSchools(newSchools);
+    saveToStorage(STORAGE_KEY_SCHOOLS, newSchools);
     setSelectedSchool(null);
     setActiveTab("list");
     setSearchQuery("");
@@ -200,11 +227,13 @@ export default function MapPage() {
 
   const handleTobaccoShopsLoaded = useCallback((newShops: TobaccoShop[]) => {
     setTobaccoShops(newShops);
+    saveToStorage(STORAGE_KEY_TOBACCO, newShops);
   }, []);
 
   const handleReset = useCallback(() => {
     setSchools(SAMPLE_SCHOOLS);
     setTobaccoShops(SAMPLE_TOBACCO_SHOPS);
+    clearStorage(STORAGE_KEY_SCHOOLS, STORAGE_KEY_TOBACCO);
     setSelectedSchool(null);
     setSearchQuery("");
   }, []);
@@ -290,7 +319,7 @@ export default function MapPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <p className="text-[9px] text-slate-500">클릭 시 이동</p>
-                    {schools !== SAMPLE_SCHOOLS && (
+                    {isCustomSchools && (
                       <button onClick={handleReset} className="text-[9px] text-slate-400 hover:text-slate-600 flex items-center gap-0.5">
                         <RefreshCw className="h-2.5 w-2.5" />초기화
                       </button>
@@ -304,10 +333,30 @@ export default function MapPage() {
                   />
                 </div>
               ) : (
-                <ExcelUploader
-                  onSchoolsLoaded={handleSchoolsLoaded}
-                  onTobaccoShopsLoaded={handleTobaccoShopsLoaded}
-                />
+                <div className="space-y-2">
+                  {(isCustomSchools || isCustomTobacco) && (
+                    <div className="rounded-lg bg-green-50 border border-green-200 p-2 text-[10px]">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-semibold text-green-700">💾 저장된 데이터 사용 중</span>
+                        <button
+                          onClick={handleReset}
+                          className="text-[9px] text-red-400 hover:text-red-600 underline"
+                        >
+                          초기화
+                        </button>
+                      </div>
+                      <div className="text-green-600 space-y-0.5">
+                        {isCustomSchools && <p>• 학교 데이터: {schools.length}개 (직접 업로드)</p>}
+                        {isCustomTobacco && <p>• 담배샵 데이터: {tobaccoShops.length}개 (직접 업로드)</p>}
+                      </div>
+                      <p className="text-green-500 mt-1">새 파일 업로드 시 자동 덮어씀</p>
+                    </div>
+                  )}
+                  <ExcelUploader
+                    onSchoolsLoaded={handleSchoolsLoaded}
+                    onTobaccoShopsLoaded={handleTobaccoShopsLoaded}
+                  />
+                </div>
               )}
             </div>
 
