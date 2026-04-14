@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import LeafletMap from "@/components/LeafletMap";
 import ExcelUploader from "@/components/ExcelUploader";
 import SchoolList from "@/components/SchoolList";
@@ -15,7 +15,9 @@ import ymcaLogo from "@assets/ymca로고_1776149746053.jpg";
 import kctcreLogo from "@assets/image_1776150010933.png";
 import DistrictMiniMap from "@/components/DistrictMiniMap";
 
-const SIDEBAR_W = 160;
+const SIDEBAR_MIN = 140;
+const SIDEBAR_MAX = 400;
+const SIDEBAR_DEFAULT = 200;
 
 function LogoSection() {
   return (
@@ -139,8 +141,22 @@ export default function MapPage() {
   const [showRadius200, setShowRadius200] = useState(true);
   const [showTobacco, setShowTobacco] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT);
   const [activeTab, setActiveTab] = useState<"upload" | "list">("list");
   const [searchQuery, setSearchQuery] = useState("");
+  const isResizing = useRef(false);
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isResizing.current) return;
+      const newWidth = Math.min(Math.max(e.clientX, SIDEBAR_MIN), SIDEBAR_MAX);
+      setSidebarWidth(newWidth);
+    };
+    const onMouseUp = () => { isResizing.current = false; document.body.style.cursor = ""; document.body.style.userSelect = ""; };
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    return () => { window.removeEventListener("mousemove", onMouseMove); window.removeEventListener("mouseup", onMouseUp); };
+  }, []);
 
   const filteredSchools = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -191,11 +207,11 @@ export default function MapPage() {
     <div className="flex h-screen w-screen overflow-hidden bg-slate-100 font-korean">
       {/* Sidebar */}
       <aside
-        className="relative flex flex-col bg-white border-r border-slate-200 shadow-sm transition-all duration-300 z-10"
-        style={{ width: sidebarOpen ? `${SIDEBAR_W}px` : "0px", minWidth: sidebarOpen ? `${SIDEBAR_W}px` : "0px" }}
+        className="relative flex flex-col bg-white border-r border-slate-200 shadow-sm z-10"
+        style={{ width: sidebarOpen ? `${sidebarWidth}px` : "0px", minWidth: sidebarOpen ? `${sidebarWidth}px` : "0px", transition: isResizing.current ? "none" : "width 0.3s, min-width 0.3s" }}
       >
         {sidebarOpen && (
-          <div className="flex flex-col h-full overflow-hidden" style={{ width: `${SIDEBAR_W}px` }}>
+          <div className="flex flex-col h-full overflow-hidden" style={{ width: `${sidebarWidth}px` }}>
             {/* Header */}
             <div className="px-3 py-3 border-b border-slate-100">
               <div className="flex items-center gap-1.5 mb-0.5">
@@ -285,17 +301,45 @@ export default function MapPage() {
             </div>
 
             {/* Stats Footer */}
-            <div className="border-t border-slate-100 px-2 py-2 bg-slate-50">
-              <div className="grid grid-cols-3 gap-1 text-center">
+            <div className="border-t border-slate-100 px-2 py-2 bg-slate-50 flex-shrink-0">
+              <div className="grid grid-cols-3 gap-1 text-center mb-1.5">
                 {(["초등학교","중학교","고등학교"] as const).map((type) => {
                   const count = filteredSchools.filter((s) => s.type === type).length;
                   return (
                     <div key={type}>
-                      <div className="text-sm font-bold text-slate-800">{count}</div>
+                      <div className="text-sm font-bold" style={{ color: SCHOOL_TYPE_COLORS[type] }}>{count}</div>
                       <div className="text-[9px] text-slate-400">{type.replace("학교","")}</div>
                     </div>
                   );
                 })}
+              </div>
+              <div className="border-t border-slate-200 pt-1.5">
+                <p className="text-[9px] text-slate-400 font-semibold text-center mb-1">🚬 전자담배</p>
+                <div className="grid grid-cols-2 gap-1 text-center">
+                  <div>
+                    <div className="text-sm font-bold text-sky-600">{tobaccoShops.filter(s => s.shopType === "온라인").length}</div>
+                    <div className="text-[9px] text-slate-400">온라인</div>
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold text-orange-500">{tobaccoShops.filter(s => s.shopType !== "온라인").length}</div>
+                    <div className="text-[9px] text-slate-400">오프라인</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Drag-to-resize handle */}
+            <div
+              onMouseDown={() => {
+                isResizing.current = true;
+                document.body.style.cursor = "col-resize";
+                document.body.style.userSelect = "none";
+              }}
+              className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize z-30 group"
+            >
+              <div className="h-full w-full bg-transparent group-hover:bg-green-400/40 transition-colors" />
+              <div className="absolute top-1/2 -translate-y-1/2 right-0 flex flex-col gap-0.5 pr-[1px] pointer-events-none">
+                {[0,1,2].map(i => <div key={i} className="w-0.5 h-3 bg-slate-300 group-hover:bg-green-500 rounded-full transition-colors" />)}
               </div>
             </div>
           </div>
@@ -305,8 +349,8 @@ export default function MapPage() {
       {/* Sidebar Toggle */}
       <button
         onClick={() => setSidebarOpen((v) => !v)}
-        className="absolute top-1/2 -translate-y-1/2 z-20 bg-white border border-slate-200 rounded-r-lg shadow px-1 py-3 text-slate-400 hover:text-slate-600 transition-all"
-        style={{ left: sidebarOpen ? `${SIDEBAR_W}px` : "0px" }}
+        className="absolute top-1/2 -translate-y-1/2 z-20 bg-white border border-slate-200 rounded-r-lg shadow px-1 py-3 text-slate-400 hover:text-slate-600"
+        style={{ left: sidebarOpen ? `${sidebarWidth}px` : "0px", transition: isResizing.current ? "none" : "left 0.3s" }}
       >
         {sidebarOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
       </button>

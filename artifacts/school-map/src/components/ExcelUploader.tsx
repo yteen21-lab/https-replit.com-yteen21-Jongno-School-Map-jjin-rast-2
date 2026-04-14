@@ -123,10 +123,11 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
               candidates.some((c) => k.trim().toLowerCase().includes(c))
             );
 
-          const nameKey    = findKey("업소명", "상호명", "매장명", "name", "이름", "명칭", "상호", "매장");
-          const latKey     = findKey("위도", "lat", "latitude", "y");
-          const lngKey     = findKey("경도", "lng", "lon", "longitude", "x");
-          const addressKey = findKey("주소", "address", "addr", "도로명", "지번");
+          const nameKey     = findKey("업소명", "상호명", "매장명", "name", "이름", "명칭", "상호", "매장");
+          const latKey      = findKey("위도", "lat", "latitude", "y");
+          const lngKey      = findKey("경도", "lng", "lon", "longitude", "x");
+          const addressKey  = findKey("주소", "address", "addr", "도로명", "지번");
+          const shopTypeKey = findKey("유형", "판매방식", "종류", "온라인", "shoptype", "type");
 
           if (!nameKey || !latKey || !lngKey) {
             setTobaccoError(`필수 컬럼 없음\n필요: 업소명, 위도, 경도\n현재: ${Object.keys(firstRow).join(", ")}`);
@@ -138,9 +139,11 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
             const lat     = parseFloat(String(row[latKey!] || ""));
             const lng     = parseFloat(String(row[lngKey!] || ""));
             const address = addressKey ? String(row[addressKey] || "").trim() || undefined : undefined;
+            const rawType = shopTypeKey ? String(row[shopTypeKey] || "").trim() : "";
+            const shopType: "온라인" | "오프라인" = rawType.includes("온라인") || rawType.toLowerCase().includes("online") ? "온라인" : "오프라인";
             if (!name || isNaN(lat) || isNaN(lng)) return null;
             if (lat < 30 || lat > 40 || lng < 120 || lng > 135) return null;
-            return { id: `excel-t${i}`, name, lat, lng, address } as TobaccoShop;
+            return { id: `excel-t${i}`, name, lat, lng, address, shopType } as TobaccoShop;
           }).filter(Boolean) as TobaccoShop[];
 
           if (shops.length === 0) { setTobaccoError("유효한 데이터가 없습니다. 위도/경도를 확인해 주세요."); return; }
@@ -257,7 +260,8 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
             <p className="font-semibold text-slate-600">컬럼 안내</p>
             <p>• 이름: <span className="font-mono">업소명 / 매장명 / 상호명</span></p>
             <p>• 위치: <span className="font-mono">위도, 경도</span> (필수)</p>
-            <p>• 선택: <span className="font-mono">주소</span></p>
+            <p>• 선택: <span className="font-mono">주소, 유형</span></p>
+            <p className="text-slate-400">유형 값: <span className="font-mono">온라인 / 오프라인</span></p>
           </div>
         </div>
       )}
