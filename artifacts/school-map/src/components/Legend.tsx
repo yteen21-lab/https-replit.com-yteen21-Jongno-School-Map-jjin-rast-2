@@ -7,9 +7,13 @@ interface LegendProps {
   showRadius50: boolean;
   showRadius200: boolean;
   showTobacco: boolean;
+  showMuIn: boolean;
+  showYuIn: boolean;
   onToggleRadius50: () => void;
   onToggleRadius200: () => void;
   onToggleTobacco: () => void;
+  onToggleMuIn: () => void;
+  onToggleYuIn: () => void;
 }
 
 interface TooltipProps {
@@ -19,7 +23,6 @@ interface TooltipProps {
 
 function Tooltip({ text, children }: TooltipProps) {
   const [visible, setVisible] = useState(false);
-
   return (
     <div
       className="relative"
@@ -48,14 +51,21 @@ export default function Legend({
   showRadius50,
   showRadius200,
   showTobacco,
+  showMuIn,
+  showYuIn,
   onToggleRadius50,
   onToggleRadius200,
   onToggleTobacco,
+  onToggleMuIn,
+  onToggleYuIn,
 }: LegendProps) {
   const schoolCounts = schools.reduce<Record<string, number>>((acc, s) => {
     acc[s.type] = (acc[s.type] || 0) + 1;
     return acc;
   }, {});
+
+  const muInShops  = tobaccoShops.filter(s => s.shopType !== "유인");
+  const yuInShops  = tobaccoShops.filter(s => s.shopType === "유인");
 
   const tobaccoCounts = tobaccoShops.reduce<Record<TobaccoZone, number>>(
     (acc, shop) => {
@@ -77,7 +87,7 @@ export default function Legend({
   const TOOLTIP_200 = `상대보호구역 (학교보건법 제5조)\n\n학교 경계로부터 직선거리 200m 이내 구역 (절대보호구역 제외).\n\n교육감 또는 교육장의 심의를 거쳐 유해업소 설치 여부가 결정됩니다.`;
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-4 space-y-4 min-w-[200px] max-h-[90vh] overflow-y-auto">
+    <div className="bg-white rounded-xl shadow-lg p-4 space-y-4 min-w-[210px] max-h-[90vh] overflow-y-auto">
       {/* 학교 구분 */}
       <div>
         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">학교 구분</p>
@@ -140,25 +150,82 @@ export default function Legend({
       {/* 담배샵 */}
       <div className="border-t border-slate-100 pt-3">
         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">담배샵</p>
-        <ul className="space-y-1.5">
-          <li>
+
+        {/* 전체 표시 토글 */}
+        <button
+          onClick={onToggleTobacco}
+          className={`flex items-center gap-2 text-sm w-full rounded-md px-2 py-1.5 transition-all mb-2 ${
+            showTobacco ? "bg-orange-50 text-orange-700" : "text-slate-400"
+          }`}
+        >
+          <span className="flex-shrink-0 w-4 h-4 rounded-sm border-2 border-orange-400 bg-orange-100 flex items-center justify-center text-[9px]">🚬</span>
+          <span>업소 표시</span>
+          {showTobacco
+            ? <span className="ml-auto text-xs font-semibold">ON</span>
+            : <span className="ml-auto text-xs">OFF</span>
+          }
+        </button>
+
+        {/* 무인 / 유인 서브 토글 */}
+        {showTobacco && (
+          <div className="space-y-1 mb-3 pl-1">
+            {/* 무인 토글 */}
             <button
-              onClick={onToggleTobacco}
-              className={`flex items-center gap-2 text-sm w-full rounded-md px-2 py-1.5 transition-all ${
-                showTobacco ? "bg-orange-50 text-orange-700" : "text-slate-400"
+              onClick={onToggleMuIn}
+              className={`flex items-center gap-2 text-xs w-full rounded-md px-2 py-1.5 border transition-all ${
+                showMuIn
+                  ? "bg-slate-50 border-slate-300 text-slate-700"
+                  : "border-dashed border-slate-200 text-slate-400"
               }`}
             >
-              <span className="flex-shrink-0 w-4 h-4 rounded-sm border-2 border-orange-400 bg-orange-100 flex items-center justify-center text-[9px]">🚬</span>
-              <span>업소 표시</span>
-              {showTobacco
-                ? <span className="ml-auto text-xs font-semibold">ON</span>
-                : <span className="ml-auto text-xs">OFF</span>
-              }
+              <span
+                className="flex-shrink-0 w-5 h-5 rounded flex items-center justify-center text-[11px] font-bold border"
+                style={{
+                  background: showMuIn ? "#475569" : "#e2e8f0",
+                  borderColor: showMuIn ? "#334155" : "#cbd5e1",
+                  color: showMuIn ? "white" : "#94a3b8",
+                }}
+              >
+                🚬
+              </span>
+              <span className="font-medium">무인전자담배샵</span>
+              <span className="ml-auto font-mono text-slate-400">{muInShops.length}</span>
+              <span className={`text-[10px] font-semibold ml-1 ${showMuIn ? "text-slate-600" : "text-slate-300"}`}>
+                {showMuIn ? "ON" : "OFF"}
+              </span>
             </button>
-          </li>
-        </ul>
+
+            {/* 유인 토글 */}
+            <button
+              onClick={onToggleYuIn}
+              className={`flex items-center gap-2 text-xs w-full rounded-md px-2 py-1.5 border transition-all ${
+                showYuIn
+                  ? "bg-purple-50 border-purple-300 text-purple-700"
+                  : "border-dashed border-slate-200 text-slate-400"
+              }`}
+            >
+              <span
+                className="flex-shrink-0 w-5 h-5 rounded flex items-center justify-center text-[11px] font-bold border"
+                style={{
+                  background: showYuIn ? "#7C3AED" : "#e2e8f0",
+                  borderColor: showYuIn ? "#6d28d9" : "#cbd5e1",
+                  color: showYuIn ? "white" : "#94a3b8",
+                }}
+              >
+                🏪
+              </span>
+              <span className="font-medium">일반담배샵</span>
+              <span className="ml-auto font-mono text-slate-400">{yuInShops.length}</span>
+              <span className={`text-[10px] font-semibold ml-1 ${showYuIn ? "text-purple-600" : "text-slate-300"}`}>
+                {showYuIn ? "ON" : "OFF"}
+              </span>
+            </button>
+          </div>
+        )}
+
+        {/* 구역별 분포 */}
         {showTobacco && (
-          <ul className="mt-2 space-y-1.5 pl-1">
+          <ul className="space-y-1.5 pl-1">
             {tobaccoZones.map(([zone, color, label]) => (
               <li key={zone} className="flex items-center gap-2">
                 <span

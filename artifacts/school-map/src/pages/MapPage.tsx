@@ -144,6 +144,8 @@ export default function MapPage() {
   const [showRadius50, setShowRadius50] = useState(true);
   const [showRadius200, setShowRadius200] = useState(true);
   const [showTobacco, setShowTobacco] = useState(true);
+  const [showMuIn, setShowMuIn] = useState(true);
+  const [showYuIn, setShowYuIn] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT);
   const [activeTab, setActiveTab] = useState<"upload" | "list">("list");
@@ -176,6 +178,11 @@ export default function MapPage() {
   const violationCount = useMemo(
     () => tobaccoShops.filter((s) => getTobaccoZone(s, schools) !== "외부").length,
     [tobaccoShops, schools]
+  );
+
+  const visibleTobaccoShops = useMemo(
+    () => tobaccoShops.filter((s) => s.shopType === "유인" ? showYuIn : showMuIn),
+    [tobaccoShops, showMuIn, showYuIn]
   );
 
   const districtPolygon = useMemo((): [number, number][] | undefined => {
@@ -389,7 +396,7 @@ export default function MapPage() {
 
         <LeafletMap
           schools={filteredSchools}
-          tobaccoShops={tobaccoShops}
+          tobaccoShops={visibleTobaccoShops}
           selectedSchool={selectedSchool}
           onSelectSchool={setSelectedSchool}
           showRadius50={showRadius50}
@@ -406,9 +413,13 @@ export default function MapPage() {
             showRadius50={showRadius50}
             showRadius200={showRadius200}
             showTobacco={showTobacco}
+            showMuIn={showMuIn}
+            showYuIn={showYuIn}
             onToggleRadius50={() => setShowRadius50((v) => !v)}
             onToggleRadius200={() => setShowRadius200((v) => !v)}
             onToggleTobacco={() => setShowTobacco((v) => !v)}
+            onToggleMuIn={() => setShowMuIn((v) => !v)}
+            onToggleYuIn={() => setShowYuIn((v) => !v)}
           />
         </div>
 
