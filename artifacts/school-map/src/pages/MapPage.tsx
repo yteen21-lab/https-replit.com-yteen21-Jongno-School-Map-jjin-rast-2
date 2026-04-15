@@ -11,7 +11,7 @@ import {
   SCHOOL_TYPE_COLORS, TOBACCO_ZONE_COLORS,
   computeDistrictPolygon,
 } from "@/types/school";
-import { RefreshCw, School as SchoolIcon, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import { RefreshCw, School as SchoolIcon, ChevronLeft, ChevronRight, Search, X, Link2, Check, CloudUpload, Cloud } from "lucide-react";
 import ymcaLogo from "@assets/ymca로고_1776149746053.jpg";
 import kctcreLogo from "@assets/image_1776150010933.png";
 import DistrictMiniMap from "@/components/DistrictMiniMap";
@@ -176,8 +176,28 @@ export default function MapPage() {
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT);
   const [activeTab, setActiveTab] = useState<"upload" | "list">("list");
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [serverSynced, setServerSynced] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [copyDone, setCopyDone] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const isResizing = useRef(false);
+
+  /* 서버에서 공유 데이터 로드 */
+  useEffect(() => {
+    fetch("/api/school-map-data")
+      .then((r) => {
+        if (!r.ok) return null;
+        return r.json() as Promise<{ schools: School[]; tobacco: TobaccoShop[]; savedAt: string }>;
+      })
+      .then((data) => {
+        if (!data) return;
+        setSchools(data.schools);
+        setTobaccoShops(data.tobacco);
+        setServerSynced(true);
+        setSavedAt(data.savedAt ? new Date(data.savedAt).toLocaleTimeString("ko-KR") : null);
+      })
+      .catch(() => { /* 서버 없으면 로컬 데이터 사용 */ });
+  }, []);
 
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
@@ -261,10 +281,25 @@ export default function MapPage() {
   }, []);
 
   const handleSave = useCallback(() => {
+    setSaveError(null);
     setSchools((prevSchools) => {
       setTobaccoShops((prevShops) => {
         saveToStorage(STORAGE_KEY_SCHOOLS, prevSchools);
         saveToStorage(STORAGE_KEY_TOBACCO, prevShops);
+        /* 서버에도 저장 */
+        fetch("/api/school-map-data", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ schools: prevSchools, tobacco: prevShops }),
+        })
+          .then((r) => r.json())
+          .then((res: { ok?: boolean; savedAt?: string }) => {
+            if (res.ok) {
+              setServerSynced(true);
+              setSaveError(null);
+            }
+          })
+          .catch(() => setSaveError("서버 저장 실패 (로컬만 저장됨)"));
         return prevShops;
       });
       return prevSchools;
@@ -430,9 +465,10 @@ export default function MapPage() {
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={handleSave}
-                          className="text-[9px] bg-blue-500 hover:bg-blue-600 text-white rounded px-1.5 py-0.5 font-semibold transition-colors"
+                          className="text-[9px] bg-blue-500 hover:bg-blue-600 text-white rounded px-1.5 py-0.5 font-semibold transition-colors flex items-center gap-0.5"
                         >
-                          💾 저장
+                          <CloudUpload className="w-2.5 h-2.5" />
+                          저장·공유
                         </button>
                         <button
                           onClick={handleReset}
@@ -450,10 +486,37 @@ export default function MapPage() {
                         {isCustomTobacco && <span className="text-blue-600 font-semibold"> + 추가 {tobaccoShops.filter(s => s.id.startsWith("excel-")).length}개 = 총 {tobaccoShops.length}개</span>}
                       </p>
                     </div>
-                    {savedAt ? (
-                      <p className="text-blue-500 mt-1">✓ {savedAt} 저장됨 · 새 파일 업로드 시 자동 추가</p>
+
+                    {/* 서버 동기화 상태 */}
+                    {savedAt && serverSynced ? (
+                      <div className="mt-1.5 flex items-center gap-1 text-emerald-600">
+                        <Cloud className="w-2.5 h-2.5" />
+                        <span>{savedAt} 서버 저장 완료 — URL 공유 시 동일 데이터가 표시됩니다</span>
+                      </div>
+                    ) : savedAt && !serverSynced ? (
+                      <p className="text-blue-500 mt-1">✓ {savedAt} 로컬 저장됨</p>
                     ) : (
-                      <p className="text-slate-400 mt-1">새 파일 업로드 시 기존 데이터에 추가됨</p>
+                      <p className="text-slate-400 mt-1">새 파일 업로드 후 저장·공유 버튼을 누르세요</p>
+                    )}
+
+                    {saveError && <p className="text-red-400 mt-1">{saveError}</p>}
+
+                    {/* 공유 링크 복사 */}
+                    {serverSynced && (
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(window.location.href).then(() => {
+                            setCopyDone(true);
+                            setTimeout(() => setCopyDone(false), 2000);
+                          });
+                        }}
+                        className="mt-1.5 w-full flex items-center justify-center gap-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded py-1 font-semibold transition-colors"
+                      >
+                        {copyDone
+                          ? <><Check className="w-2.5 h-2.5" /> 링크 복사됨!</>
+                          : <><Link2 className="w-2.5 h-2.5" /> 공유 링크 복사</>
+                        }
+                      </button>
                     )}
                   </div>
                   <ExcelUploader
