@@ -181,6 +181,11 @@ export default function MapPage() {
   const [copyDone, setCopyDone] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const isResizing = useRef(false);
+  /* 최신 상태를 handleSave에서 안전하게 읽기 위한 ref */
+  const schoolsRef = useRef(schools);
+  const tobaccoRef = useRef(tobaccoShops);
+  useEffect(() => { schoolsRef.current = schools; }, [schools]);
+  useEffect(() => { tobaccoRef.current = tobaccoShops; }, [tobaccoShops]);
 
   /* 서버에서 공유 데이터 로드 */
   useEffect(() => {
@@ -281,32 +286,38 @@ export default function MapPage() {
   }, []);
 
   const handleSave = useCallback(() => {
-    setSaveError(null);
-    setSchools((prevSchools) => {
-      setTobaccoShops((prevShops) => {
-        saveToStorage(STORAGE_KEY_SCHOOLS, prevSchools);
-        saveToStorage(STORAGE_KEY_TOBACCO, prevShops);
-        /* 서버에도 저장 */
-        fetch("/api/school-map-data", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ schools: prevSchools, tobacco: prevShops }),
-        })
-          .then((r) => r.json())
-          .then((res: { ok?: boolean; savedAt?: string }) => {
-            if (res.ok) {
-              setServerSynced(true);
-              setSaveError(null);
-            }
-          })
-          .catch(() => setSaveError("서버 저장 실패 (로컬만 저장됨)"));
-        return prevShops;
-      });
-      return prevSchools;
-    });
+    const currentSchools = schoolsRef.current;
+    const currentTobacco = tobaccoRef.current;
+
+    /* 1. 로컬 저장 */
+    saveToStorage(STORAGE_KEY_SCHOOLS, currentSchools);
+    saveToStorage(STORAGE_KEY_TOBACCO, currentTobacco);
+
     const now = new Date();
     const timeStr = `${now.getHours().toString().padStart(2,"0")}:${now.getMinutes().toString().padStart(2,"0")}:${now.getSeconds().toString().padStart(2,"0")}`;
     setSavedAt(timeStr);
+    setSaveError(null);
+
+    /* 2. 서버 저장 → 공유 가능 */
+    fetch("/api/school-map-data", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ schools: currentSchools, tobacco: currentTobacco }),
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json() as Promise<{ ok: boolean }>;
+      })
+      .then((res) => {
+        if (res.ok) {
+          setServerSynced(true);
+          setSaveError(null);
+        }
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        setSaveError(`서버 저장 실패: ${msg}`);
+      });
   }, []);
 
   const handleSelectSchool = useCallback((school: School) => {
