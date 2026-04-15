@@ -46,7 +46,7 @@ function LogoSection() {
           src={ymcaLogo}
           alt="서울YMCA"
           className="w-full object-contain"
-          style={{ maxHeight: "56px" }}
+          style={{ maxHeight: "80px" }}
         />
       </div>
       <div className="bg-white border border-slate-100 rounded-lg px-2 py-1.5 flex items-center justify-center">

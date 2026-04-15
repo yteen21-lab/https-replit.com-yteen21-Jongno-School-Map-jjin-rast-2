@@ -210,7 +210,7 @@ export default function LeafletMap({
               background:${shopTypeColor};color:white;
               font-size:10px;font-weight:700;
               border-radius:4px;padding:2px 6px;
-            ">${isUnmanned ? "🚬 무인전자담배샵" : "🏪 유인담배샵"}</span>
+            ">${isUnmanned ? "🚬 무인전자담배자판기" : "🏪 오프라인전자담배"}</span>
           </div>
           ${shop.address ? `<p style="font-size:11px;color:#64748b;margin:0 0 6px">${shop.address}</p>` : ""}
           <p style="font-size:12px;font-weight:600;color:${color};margin:0">${zoneLabel}</p>
