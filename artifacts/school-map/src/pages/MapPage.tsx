@@ -562,6 +562,8 @@ export default function MapPage() {
           showRadius50={showRadius50}
           showRadius200={showRadius200}
           showTobacco={showTobacco}
+          show50m={show50m}
+          show200m={show200m}
           districtPolygon={districtPolygon}
         />
 
