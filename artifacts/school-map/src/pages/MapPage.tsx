@@ -170,6 +170,8 @@ export default function MapPage() {
   const [showTobacco, setShowTobacco] = useState(true);
   const [showMuIn, setShowMuIn] = useState(true);
   const [showYuIn, setShowYuIn] = useState(true);
+  const [show50m, setShow50m] = useState(true);
+  const [show200m, setShow200m] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT);
   const [activeTab, setActiveTab] = useState<"upload" | "list">("list");
@@ -220,8 +222,14 @@ export default function MapPage() {
   );
 
   const visibleTobaccoShops = useMemo(
-    () => tobaccoShops.filter((s) => s.shopType === "유인" ? showYuIn : showMuIn),
-    [tobaccoShops, showMuIn, showYuIn]
+    () => tobaccoShops.filter((s) => {
+      if (s.shopType === "유인" ? !showYuIn : !showMuIn) return false;
+      const zone = getTobaccoZone(s, schools);
+      if (zone === "50m이내"  && !show50m)  return false;
+      if (zone === "200m이내" && !show200m) return false;
+      return true;
+    }),
+    [tobaccoShops, showMuIn, showYuIn, show50m, show200m, schools]
   );
 
   const districtPolygon = useMemo((): [number, number][] | undefined => {
@@ -567,11 +575,15 @@ export default function MapPage() {
             showTobacco={showTobacco}
             showMuIn={showMuIn}
             showYuIn={showYuIn}
+            show50m={show50m}
+            show200m={show200m}
             onToggleRadius50={() => setShowRadius50((v) => !v)}
             onToggleRadius200={() => setShowRadius200((v) => !v)}
             onToggleTobacco={() => setShowTobacco((v) => !v)}
             onToggleMuIn={() => setShowMuIn((v) => !v)}
             onToggleYuIn={() => setShowYuIn((v) => !v)}
+            onToggle50m={() => setShow50m((v) => !v)}
+            onToggle200m={() => setShow200m((v) => !v)}
           />
         </div>
 

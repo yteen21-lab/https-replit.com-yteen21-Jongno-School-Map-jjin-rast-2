@@ -9,11 +9,15 @@ interface LegendProps {
   showTobacco: boolean;
   showMuIn: boolean;
   showYuIn: boolean;
+  show50m: boolean;
+  show200m: boolean;
   onToggleRadius50: () => void;
   onToggleRadius200: () => void;
   onToggleTobacco: () => void;
   onToggleMuIn: () => void;
   onToggleYuIn: () => void;
+  onToggle50m: () => void;
+  onToggle200m: () => void;
 }
 
 interface TooltipProps {
@@ -53,11 +57,15 @@ export default function Legend({
   showTobacco,
   showMuIn,
   showYuIn,
+  show50m,
+  show200m,
   onToggleRadius50,
   onToggleRadius200,
   onToggleTobacco,
   onToggleMuIn,
   onToggleYuIn,
+  onToggle50m,
+  onToggle200m,
 }: LegendProps) {
   const schoolCounts = schools.reduce<Record<string, number>>((acc, s) => {
     acc[s.type] = (acc[s.type] || 0) + 1;
@@ -225,18 +233,47 @@ export default function Legend({
 
         {/* 구역별 분포 */}
         {showTobacco && (
-          <ul className="space-y-1.5 pl-1">
-            {tobaccoZones.map(([zone, color, label]) => (
-              <li key={zone} className="flex items-center gap-2">
-                <span
-                  className="inline-block w-3.5 h-3.5 rounded-sm flex-shrink-0 border-2 border-white shadow-sm"
-                  style={{ backgroundColor: color }}
-                />
-                <span className="text-xs text-slate-700">{zone}</span>
-                <span className="text-xs text-slate-400">({label})</span>
-                <span className="ml-auto text-xs font-mono text-slate-500">{tobaccoCounts[zone]}</span>
-              </li>
-            ))}
+          <ul className="space-y-1 pl-1">
+            {tobaccoZones.map(([zone, color, label]) => {
+              const isToggleable = zone === "50m이내" || zone === "200m이내";
+              const isActive = zone === "50m이내" ? show50m : zone === "200m이내" ? show200m : true;
+              const onToggle = zone === "50m이내" ? onToggle50m : zone === "200m이내" ? onToggle200m : undefined;
+              return isToggleable ? (
+                <li key={zone}>
+                  <button
+                    onClick={onToggle}
+                    className={`flex items-center gap-2 w-full rounded-md px-2 py-1.5 border transition-all ${
+                      isActive
+                        ? zone === "50m이내"
+                          ? "bg-red-50 border-red-200 text-red-700"
+                          : "bg-orange-50 border-orange-200 text-orange-700"
+                        : "border-dashed border-slate-200 text-slate-400"
+                    }`}
+                  >
+                    <span
+                      className="inline-block w-3.5 h-3.5 rounded-sm flex-shrink-0 border-2 border-white shadow-sm"
+                      style={{ backgroundColor: isActive ? color : "#cbd5e1" }}
+                    />
+                    <span className="text-xs font-medium">{zone}</span>
+                    <span className="text-xs opacity-70">({label})</span>
+                    <span className="ml-auto text-xs font-mono">{tobaccoCounts[zone]}</span>
+                    <span className={`text-[10px] font-semibold ml-1 ${isActive ? "" : "text-slate-300"}`}>
+                      {isActive ? "ON" : "OFF"}
+                    </span>
+                  </button>
+                </li>
+              ) : (
+                <li key={zone} className="flex items-center gap-2 px-2 py-1.5">
+                  <span
+                    className="inline-block w-3.5 h-3.5 rounded-sm flex-shrink-0 border-2 border-white shadow-sm"
+                    style={{ backgroundColor: color }}
+                  />
+                  <span className="text-xs text-slate-700">{zone}</span>
+                  <span className="text-xs text-slate-400">({label})</span>
+                  <span className="ml-auto text-xs font-mono text-slate-500">{tobaccoCounts[zone]}</span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
