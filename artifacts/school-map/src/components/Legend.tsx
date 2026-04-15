@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ChevronRight } from "lucide-react";
 import { School, TobaccoShop, SCHOOL_TYPE_COLORS, TOBACCO_ZONE_COLORS, SchoolType, TobaccoZone, getTobaccoZone } from "@/types/school";
 
 interface LegendProps {
@@ -9,15 +10,13 @@ interface LegendProps {
   showTobacco: boolean;
   showMuIn: boolean;
   showYuIn: boolean;
-  show50m: boolean;
-  show200m: boolean;
+  activeZonePanel: "50m" | "200m" | null;
   onToggleRadius50: () => void;
   onToggleRadius200: () => void;
   onToggleTobacco: () => void;
   onToggleMuIn: () => void;
   onToggleYuIn: () => void;
-  onToggle50m: () => void;
-  onToggle200m: () => void;
+  onOpenZonePanel: (zone: "50m" | "200m") => void;
 }
 
 interface TooltipProps {
@@ -57,15 +56,13 @@ export default function Legend({
   showTobacco,
   showMuIn,
   showYuIn,
-  show50m,
-  show200m,
+  activeZonePanel,
   onToggleRadius50,
   onToggleRadius200,
   onToggleTobacco,
   onToggleMuIn,
   onToggleYuIn,
-  onToggle50m,
-  onToggle200m,
+  onOpenZonePanel,
 }: LegendProps) {
   const schoolCounts = schools.reduce<Record<string, number>>((acc, s) => {
     acc[s.type] = (acc[s.type] || 0) + 1;
@@ -235,42 +232,41 @@ export default function Legend({
         {showTobacco && (
           <ul className="space-y-1 pl-1">
             {tobaccoZones.map(([zone, color, label]) => {
-              const isToggleable = zone === "50m이내" || zone === "200m이내";
-              const isActive = zone === "50m이내" ? show50m : zone === "200m이내" ? show200m : true;
-              const onToggle = zone === "50m이내" ? onToggle50m : zone === "200m이내" ? onToggle200m : undefined;
-              return isToggleable ? (
+              const panelKey = zone === "50m이내" ? "50m" : zone === "200m이내" ? "200m" : null;
+              const isOpen = panelKey !== null && activeZonePanel === panelKey;
+
+              const rowBase = "flex items-center gap-2 w-full rounded-md px-2 py-1.5 border transition-all text-xs";
+              const activeStyle =
+                zone === "50m이내"  ? "bg-red-50 border-red-300 text-red-700 shadow-sm" :
+                zone === "200m이내" ? "bg-orange-50 border-orange-300 text-orange-700 shadow-sm" :
+                "border-slate-100 text-slate-600";
+              const idleStyle = panelKey ? "border-slate-200 text-slate-600 hover:bg-slate-50" : "border-transparent text-slate-600";
+
+              return panelKey ? (
                 <li key={zone}>
                   <button
-                    onClick={onToggle}
-                    className={`flex items-center gap-2 w-full rounded-md px-2 py-1.5 border transition-all ${
-                      isActive
-                        ? zone === "50m이내"
-                          ? "bg-red-50 border-red-200 text-red-700"
-                          : "bg-orange-50 border-orange-200 text-orange-700"
-                        : "border-dashed border-slate-200 text-slate-400"
-                    }`}
+                    onClick={() => onOpenZonePanel(panelKey)}
+                    className={`${rowBase} ${isOpen ? activeStyle : idleStyle}`}
                   >
                     <span
                       className="inline-block w-3.5 h-3.5 rounded-sm flex-shrink-0 border-2 border-white shadow-sm"
-                      style={{ backgroundColor: isActive ? color : "#cbd5e1" }}
+                      style={{ backgroundColor: color }}
                     />
-                    <span className="text-xs font-medium">{zone}</span>
-                    <span className="text-xs opacity-70">({label})</span>
-                    <span className="ml-auto text-xs font-mono">{tobaccoCounts[zone]}</span>
-                    <span className={`text-[10px] font-semibold ml-1 ${isActive ? "" : "text-slate-300"}`}>
-                      {isActive ? "ON" : "OFF"}
-                    </span>
+                    <span className="font-medium">{zone}</span>
+                    <span className="opacity-60">({label})</span>
+                    <span className="ml-auto font-mono font-bold">{tobaccoCounts[zone]}</span>
+                    <ChevronRight className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${isOpen ? "rotate-90" : ""}`} />
                   </button>
                 </li>
               ) : (
-                <li key={zone} className="flex items-center gap-2 px-2 py-1.5">
+                <li key={zone} className={`${rowBase} border-transparent`}>
                   <span
                     className="inline-block w-3.5 h-3.5 rounded-sm flex-shrink-0 border-2 border-white shadow-sm"
                     style={{ backgroundColor: color }}
                   />
-                  <span className="text-xs text-slate-700">{zone}</span>
-                  <span className="text-xs text-slate-400">({label})</span>
-                  <span className="ml-auto text-xs font-mono text-slate-500">{tobaccoCounts[zone]}</span>
+                  <span className="text-slate-700">{zone}</span>
+                  <span className="text-slate-400">({label})</span>
+                  <span className="ml-auto font-mono text-slate-500">{tobaccoCounts[zone]}</span>
                 </li>
               );
             })}

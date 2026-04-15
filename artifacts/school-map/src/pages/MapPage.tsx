@@ -3,6 +3,7 @@ import LeafletMap from "@/components/LeafletMap";
 import ExcelUploader from "@/components/ExcelUploader";
 import SchoolList, { highlight } from "@/components/SchoolList";
 import Legend from "@/components/Legend";
+import ZoneShopPanel from "@/components/ZoneShopPanel";
 import {
   School, TobaccoShop,
   SAMPLE_SCHOOLS, SAMPLE_TOBACCO_SHOPS,
@@ -170,8 +171,7 @@ export default function MapPage() {
   const [showTobacco, setShowTobacco] = useState(true);
   const [showMuIn, setShowMuIn] = useState(true);
   const [showYuIn, setShowYuIn] = useState(true);
-  const [show50m, setShow50m] = useState(true);
-  const [show200m, setShow200m] = useState(true);
+  const [activeZonePanel, setActiveZonePanel] = useState<null | "50m" | "200m">(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT);
   const [activeTab, setActiveTab] = useState<"upload" | "list">("list");
@@ -222,14 +222,8 @@ export default function MapPage() {
   );
 
   const visibleTobaccoShops = useMemo(
-    () => tobaccoShops.filter((s) => {
-      if (s.shopType === "유인" ? !showYuIn : !showMuIn) return false;
-      const zone = getTobaccoZone(s, schools);
-      if (zone === "50m이내"  && !show50m)  return false;
-      if (zone === "200m이내" && !show200m) return false;
-      return true;
-    }),
-    [tobaccoShops, showMuIn, showYuIn, show50m, show200m, schools]
+    () => tobaccoShops.filter((s) => s.shopType === "유인" ? showYuIn : showMuIn),
+    [tobaccoShops, showMuIn, showYuIn]
   );
 
   const districtPolygon = useMemo((): [number, number][] | undefined => {
@@ -562,13 +556,25 @@ export default function MapPage() {
           showRadius50={showRadius50}
           showRadius200={showRadius200}
           showTobacco={showTobacco}
-          show50m={show50m}
-          show200m={show200m}
           districtPolygon={districtPolygon}
         />
 
-        {/* Legend overlay */}
-        <div className="absolute top-4 right-4 z-[1000]">
+        {/* Legend + ZoneShopPanel overlay */}
+        <div className="absolute top-4 right-4 z-[1000] flex items-start gap-2">
+          {/* Zone Shop Panel — left of legend */}
+          {activeZonePanel && (
+            <ZoneShopPanel
+              zone={activeZonePanel}
+              tobaccoShops={tobaccoShops}
+              schools={schools}
+              onClose={() => setActiveZonePanel(null)}
+              onSelectShop={(shop) => {
+                setSelectedTobaccoShop(shop);
+                setActiveZonePanel(null);
+              }}
+            />
+          )}
+
           <Legend
             schools={filteredSchools}
             tobaccoShops={tobaccoShops}
@@ -577,15 +583,15 @@ export default function MapPage() {
             showTobacco={showTobacco}
             showMuIn={showMuIn}
             showYuIn={showYuIn}
-            show50m={show50m}
-            show200m={show200m}
+            activeZonePanel={activeZonePanel}
             onToggleRadius50={() => setShowRadius50((v) => !v)}
             onToggleRadius200={() => setShowRadius200((v) => !v)}
             onToggleTobacco={() => setShowTobacco((v) => !v)}
             onToggleMuIn={() => setShowMuIn((v) => !v)}
             onToggleYuIn={() => setShowYuIn((v) => !v)}
-            onToggle50m={() => setShow50m((v) => !v)}
-            onToggle200m={() => setShow200m((v) => !v)}
+            onOpenZonePanel={(zone) =>
+              setActiveZonePanel((prev) => prev === zone ? null : zone)
+            }
           />
         </div>
 

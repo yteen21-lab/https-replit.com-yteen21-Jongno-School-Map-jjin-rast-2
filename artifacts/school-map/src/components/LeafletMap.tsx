@@ -15,8 +15,6 @@ interface LeafletMapProps {
   showRadius50: boolean;
   showRadius200: boolean;
   showTobacco: boolean;
-  show50m?: boolean;
-  show200m?: boolean;
   districtPolygon?: [number, number][];
 }
 
@@ -31,8 +29,6 @@ export default function LeafletMap({
   showRadius50,
   showRadius200,
   showTobacco,
-  show50m = true,
-  show200m = true,
   districtPolygon,
 }: LeafletMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -124,22 +120,19 @@ export default function LeafletMap({
           (cfg.radius === 200 && showRadius200);
         if (!shouldShow) return;
 
-        const zoneActive = cfg.radius === 50 ? show50m : show200m;
-
         const circle = L.circle([school.lat, school.lng], {
           radius: cfg.radius,
-          color: zoneActive ? cfg.color : "#94a3b8",
+          color: cfg.color,
           weight: cfg.radius === 50 ? 3 : 2.5,
-          opacity: zoneActive ? 1 : 0.35,
-          dashArray: zoneActive ? undefined : "6 5",
-          fillColor: zoneActive ? cfg.fillColor : "#e2e8f0",
-          fillOpacity: zoneActive ? (cfg.radius === 50 ? 0.55 : 0.45) : 0.08,
+          opacity: 1,
+          fillColor: cfg.fillColor,
+          fillOpacity: cfg.radius === 50 ? 0.55 : 0.45,
         }).addTo(map);
 
         schoolLayerRef.current.push(circle);
       });
     });
-  }, [schools, selectedSchool, showRadius50, showRadius200, show50m, show200m]);
+  }, [schools, selectedSchool, showRadius50, showRadius200]);
 
   /* ── 무인담배샵 마커 ── */
   useEffect(() => {
