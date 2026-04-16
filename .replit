@@ -30,3 +30,8 @@ externalPort = 8081
 [[ports]]
 localPort = 25475
 externalPort = 3000
+
+[userenv]
+
+[userenv.shared]
+VITE_KAKAO_MAP_API_KEY = "b48eb43fae2912c7fda3487d47bea375"
