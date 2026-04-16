@@ -8,7 +8,7 @@ import ZoneShopPanel from "@/components/ZoneShopPanel";
 import EditPanel from "@/components/EditPanel";
 import {
   School, TobaccoShop, SchoolType,
-  SAMPLE_SCHOOLS, SAMPLE_TOBACCO_SHOPS,
+  SAMPLE_TOBACCO_SHOPS,
   getTobaccoZone, haversineDistance,
   SCHOOL_TYPE_COLORS, TOBACCO_ZONE_COLORS,
   computeDistrictPolygon,
@@ -39,6 +39,26 @@ function saveToStorage<T>(key: string, value: T): void {
 
 function clearStorage(...keys: string[]): void {
   try { keys.forEach((k) => localStorage.removeItem(k)); } catch {}
+}
+
+/** 앱 최초 로드 시 구 샘플 데이터(s1~s104) 제거 + 중복 제거 후 저장 */
+function migrateSampleSchools(): School[] {
+  const raw = loadFromStorage<School[]>(STORAGE_KEY_SCHOOLS, []);
+  // 구 샘플 ID 패턴: "s" + 숫자 (예: s1, s104)
+  const withoutSamples = raw.filter((s) => !/^s\d+$/.test(s.id));
+  // 중복 제거: name|lat4|lng4 기준
+  const seen = new Set<string>();
+  const deduped = withoutSamples.filter((s) => {
+    const key = `${s.name.trim().toLowerCase()}|${s.lat.toFixed(4)}|${s.lng.toFixed(4)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  // 변경이 있을 때만 저장
+  if (deduped.length !== raw.length) {
+    saveToStorage(STORAGE_KEY_SCHOOLS, deduped);
+  }
+  return deduped;
 }
 
 function LogoSection() {
@@ -161,7 +181,7 @@ function DistrictPanel({ school, allSchools, tobaccoShops, onClose }: DistrictPa
 
 export default function MapPage() {
   const [schools, setSchools] = useState<School[]>(() =>
-    loadFromStorage<School[]>(STORAGE_KEY_SCHOOLS, SAMPLE_SCHOOLS)
+    migrateSampleSchools()
   );
   const [tobaccoShops, setTobaccoShops] = useState<TobaccoShop[]>(() =>
     loadFromStorage<TobaccoShop[]>(STORAGE_KEY_TOBACCO, SAMPLE_TOBACCO_SHOPS)
@@ -287,8 +307,8 @@ export default function MapPage() {
   }, []);
 
   const handleReset = useCallback(() => {
-    setSchools(SAMPLE_SCHOOLS);
-    setTobaccoShops(SAMPLE_TOBACCO_SHOPS);
+    setSchools([]);
+    setTobaccoShops([]);
     clearStorage(STORAGE_KEY_SCHOOLS, STORAGE_KEY_TOBACCO);
     setSelectedSchool(null);
     setSearchQuery("");
@@ -555,11 +575,13 @@ export default function MapPage() {
                       </div>
                     </div>
                     <div className="text-slate-600 space-y-0.5">
-                      <p>• 학교: 샘플 {SAMPLE_SCHOOLS.length}개
-                        {isCustomSchools && <span className="text-blue-600 font-semibold"> + 추가 {schools.filter(s => s.id.startsWith("excel-")).length}개 = 총 {schools.length}개</span>}
+                      <p>• 학교: {schools.length > 0
+                        ? <span className="text-blue-600 font-semibold">총 {schools.length}개 등록됨</span>
+                        : <span className="text-slate-400">없음 (엑셀 업로드 필요)</span>}
                       </p>
-                      <p>• 담배샵: 샘플 {SAMPLE_TOBACCO_SHOPS.length}개
-                        {isCustomTobacco && <span className="text-blue-600 font-semibold"> + 추가 {tobaccoShops.filter(s => s.id.startsWith("excel-")).length}개 = 총 {tobaccoShops.length}개</span>}
+                      <p>• 담배샵: {tobaccoShops.length > 0
+                        ? <span className="text-blue-600 font-semibold">총 {tobaccoShops.length}개 등록됨</span>
+                        : <span className="text-slate-400">없음</span>}
                       </p>
                     </div>
 
