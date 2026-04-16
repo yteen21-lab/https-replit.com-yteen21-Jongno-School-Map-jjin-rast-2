@@ -361,15 +361,40 @@ export default function MapPage() {
     });
   }, []);
 
-  /* 지도 클릭으로 학교 추가 */
+  /* 지도 클릭으로 학교 추가 → localStorage + 서버 자동 동기화 */
   const handleAddSchoolFromMap = useCallback((school: Omit<School, "id">) => {
     const newSchool: School = { ...school, id: `map-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` };
-    setSchools((prev) => {
-      const next = [...prev, newSchool];
-      saveToStorage(STORAGE_KEY_SCHOOLS, next);
-      return next;
-    });
+
+    /* 현재 목록 + 신규 학교 */
+    const updatedSchools = [...schoolsRef.current, newSchool];
+    const currentTobacco = tobaccoRef.current;
+
+    /* 1. 로컬 저장 + 상태 업데이트 */
+    saveToStorage(STORAGE_KEY_SCHOOLS, updatedSchools);
+    setSchools(updatedSchools);
     setSelectedSchool(newSchool);
+
+    /* 2. 서버에도 즉시 저장 → 공유 URL에 반영 */
+    fetch("/api/school-map-data", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ schools: updatedSchools, tobacco: currentTobacco }),
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json() as Promise<{ ok: boolean; savedAt: string }>;
+      })
+      .then((res) => {
+        if (res.ok) {
+          setServerSynced(true);
+          setSaveError(null);
+          setSavedAt(new Date(res.savedAt).toLocaleTimeString("ko-KR"));
+        }
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        setSaveError(`자동 서버 저장 실패: ${msg}`);
+      });
   }, []);
 
   const handleSave = useCallback(() => {
