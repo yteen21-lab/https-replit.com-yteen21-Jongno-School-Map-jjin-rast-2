@@ -132,19 +132,20 @@ export default function LeafletMap({
       const pos = new kakao.maps.LatLng(school.lat, school.lng);
 
       const el = document.createElement("div");
-      el.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;";
+      el.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;pointer-events:auto;";
       el.innerHTML = `
-        <div style="
-          width:${size}px;height:${size}px;
-          background:${color};border:2px solid white;border-radius:50%;
-          box-shadow:0 2px 6px rgba(0,0,0,0.4);
-        "></div>
         <div style="
           background:white;border:1px solid ${color};border-radius:4px;
           padding:2px 6px;font-size:11px;font-family:'Noto Sans KR',sans-serif;
           font-weight:500;color:#1e293b;white-space:nowrap;
           box-shadow:0 1px 4px rgba(0,0,0,0.15);
-        ">${school.name}</div>`;
+        ">${school.name}</div>
+        <div style="
+          width:${size}px;height:${size}px;
+          background:${color};border:2px solid white;border-radius:50%;
+          box-shadow:0 2px 6px rgba(0,0,0,0.4);
+          flex-shrink:0;
+        "></div>`;
 
       el.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -157,7 +158,7 @@ export default function LeafletMap({
         map,
         zIndex: isSelected ? 10 : 1,
         xAnchor: 0.5,
-        yAnchor: 0.5,
+        yAnchor: 1,
       });
 
       schoolLayersRef.current.push(overlay);
