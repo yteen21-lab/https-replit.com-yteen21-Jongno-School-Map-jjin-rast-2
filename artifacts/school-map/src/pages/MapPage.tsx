@@ -746,7 +746,7 @@ export default function MapPage() {
           }`}
         >
           <SchoolIcon size={15} />
-          {addSchoolMode ? "📍 지도 클릭으로 학교 추가 중… (다시 클릭해 해제)" : "지도에서 학교 추가"}
+          {addSchoolMode ? "📍 학교 위치를 클릭하세요 (버튼 재클릭 = 해제)" : "지도에서 학교 추가"}
         </button>
 
         {/* Legend + ZoneShopPanel overlay */}

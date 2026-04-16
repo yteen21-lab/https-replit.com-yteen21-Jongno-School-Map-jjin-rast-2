@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, type MutableRefObject } from "react";
 import {
   School, TobaccoShop, SchoolType,
   SCHOOL_TYPE_COLORS, CIRCLE_CONFIGS,
@@ -66,6 +66,174 @@ function detectTypeFromCategory(categoryName: string, placeName: string): School
   if (cat.includes("중학교") || /중$/.test(placeName)) return "중학교";
   if (cat.includes("고등학교") || /고$/.test(placeName) || cat.includes("고교")) return "고등학교";
   return "기타";
+}
+
+type SearchDoc = {
+  id: string; place_name: string; category_name: string;
+  address_name: string; road_address_name: string;
+  x: string; y: string; distance: string;
+};
+
+function renderPickerResults(
+  picker: HTMLElement,
+  results: SearchDoc[],
+  closePicker: () => void,
+  onAddSchoolRef: MutableRefObject<((s: Omit<School, "id">) => void) | undefined>,
+  existingNames: Set<string>,
+) {
+  if (results.length === 0) {
+    picker.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <span style="font-size:13px;font-weight:700;color:#1e293b;">검색 결과 없음</span>
+        <button id="picker-close" style="background:none;border:none;cursor:pointer;font-size:18px;color:#94a3b8;">✕</button>
+      </div>
+      <p style="font-size:12px;color:#64748b;margin:0;">이 위치 150m 이내에 학교가 없습니다.<br>학교 아이콘 위를 직접 클릭해 보세요.</p>`;
+    picker.querySelector("#picker-close")?.addEventListener("click", closePicker);
+    return;
+  }
+
+  const itemsHtml = results.map((r, i) => {
+    const type = detectTypeFromCategory(r.category_name, r.place_name);
+    const color = SCHOOL_TYPE_COLORS[type];
+    const addr = r.road_address_name || r.address_name;
+    const dist = r.distance ? `${r.distance}m` : "";
+    const added = existingNames.has(r.place_name.trim());
+    const badge = type.replace("학교", "").replace("등", "");
+    return `
+      <div data-idx="${i}" style="
+        display:flex;align-items:center;gap:10px;padding:9px 0;
+        border-bottom:1px solid #f1f5f9;
+        opacity:${added ? 0.5 : 1};pointer-events:${added ? "none" : "auto"};
+      ">
+        <div style="
+          flex-shrink:0;width:36px;height:36px;border-radius:8px;
+          background:${color}1a;border:1.5px solid ${color};
+          display:flex;align-items:center;justify-content:center;
+          font-size:10px;font-weight:700;color:${color};
+        ">${badge}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:600;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.place_name}</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${addr}${dist ? ` · ${dist}` : ""}</div>
+        </div>
+        ${added
+          ? `<span style="font-size:10px;color:#16a34a;font-weight:700;flex-shrink:0;">✓추가됨</span>`
+          : `<button data-add="${i}" style="
+              flex-shrink:0;background:#2563eb;color:white;border:none;
+              border-radius:6px;padding:5px 11px;font-size:11px;font-weight:700;
+              cursor:pointer;font-family:inherit;white-space:nowrap;
+            ">+ 추가</button>`
+        }
+      </div>`;
+  }).join("");
+
+  picker.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <span style="font-size:13px;font-weight:700;color:#1e293b;">📍 인근 학교 (${results.length}개)</span>
+      <button id="picker-close" style="background:none;border:none;cursor:pointer;font-size:18px;color:#94a3b8;line-height:1;padding:0 2px;">✕</button>
+    </div>
+    <div style="max-height:320px;overflow-y:auto;">${itemsHtml}</div>`;
+
+  picker.querySelector("#picker-close")?.addEventListener("click", closePicker);
+
+  picker.querySelectorAll("[data-add]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const idx = parseInt((btn as HTMLElement).getAttribute("data-add") || "0");
+      const r = results[idx];
+      const type = detectTypeFromCategory(r.category_name, r.place_name);
+      const lat = parseFloat(r.y), lng = parseFloat(r.x);
+      const addr = r.road_address_name || r.address_name;
+      const districtMatch = addr.match(/([가-힣]+구)/);
+      onAddSchoolRef.current?.({ name: r.place_name, type, lat, lng, district: districtMatch?.[1] });
+      /* 버튼 → "추가됨" 교체 */
+      const row = picker.querySelector(`[data-idx="${idx}"]`);
+      if (row) {
+        (row as HTMLElement).style.opacity = "0.5";
+        (row as HTMLElement).style.pointerEvents = "none";
+        const addBtn = row.querySelector("[data-add]");
+        if (addBtn) {
+          const span = document.createElement("span");
+          span.style.cssText = "font-size:10px;color:#16a34a;font-weight:700;flex-shrink:0;";
+          span.textContent = "✓추가됨";
+          addBtn.replaceWith(span);
+        }
+      }
+    });
+  });
+}
+
+/* ── 서버 사이드 폴백 학교 검색 ── */
+function doServerSearch(
+  lat: number,
+  lng: number,
+  picker: HTMLElement,
+  closePicker: () => void,
+  onAddSchoolRef: MutableRefObject<((s: Omit<School, "id">) => void) | undefined>,
+  schoolsRef: MutableRefObject<School[]>,
+) {
+  fetch(`/api/kakao-school-search?lat=${lat}&lng=${lng}&radius=150`)
+    .then(async (r) => {
+      if (r.status === 401 || r.status === 403) {
+        /* API 키 도메인 미등록: 직접 입력 폼으로 전환 */
+        renderManualForm(lat, lng, picker, closePicker, onAddSchoolRef);
+        return;
+      }
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json() as Promise<{ documents: SearchDoc[] }>;
+    })
+    .then((data) => {
+      if (!data) return;
+      const existingNames = new Set(schoolsRef.current.map(s => s.name.trim()));
+      renderPickerResults(picker, data.documents, closePicker, onAddSchoolRef, existingNames);
+    })
+    .catch(() => {
+      renderManualForm(lat, lng, picker, closePicker, onAddSchoolRef);
+    });
+}
+
+/* ── 수동 입력 폼 (검색 API 실패 폴백) ── */
+function renderManualForm(
+  lat: number,
+  lng: number,
+  picker: HTMLElement,
+  closePicker: () => void,
+  onAddSchoolRef: MutableRefObject<((s: Omit<School, "id">) => void) | undefined>,
+) {
+  const typeOptions = ["초등학교", "중학교", "고등학교", "기타"]
+    .map(t => `<option value="${t}">${t}</option>`).join("");
+  picker.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <span style="font-size:13px;font-weight:700;color:#1e293b;">📍 학교 직접 추가</span>
+      <button id="picker-close" style="background:none;border:none;cursor:pointer;font-size:18px;color:#94a3b8;">✕</button>
+    </div>
+    <div style="font-size:11px;color:#94a3b8;margin-bottom:10px;">위도 ${lat.toFixed(5)}, 경도 ${lng.toFixed(5)}</div>
+    <label style="font-size:12px;color:#475569;font-weight:600;">학교명</label>
+    <input id="manual-name" type="text" placeholder="예: 종로초등학교" style="
+      display:block;width:100%;box-sizing:border-box;margin:4px 0 10px;
+      border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;
+      font-family:'Noto Sans KR',sans-serif;outline:none;
+    " />
+    <label style="font-size:12px;color:#475569;font-weight:600;">학교 구분</label>
+    <select id="manual-type" style="
+      display:block;width:100%;box-sizing:border-box;margin:4px 0 14px;
+      border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;
+      font-family:'Noto Sans KR',sans-serif;background:white;
+    ">${typeOptions}</select>
+    <button id="manual-add" style="
+      width:100%;background:#2563eb;color:white;border:none;
+      border-radius:8px;padding:10px;font-size:13px;font-weight:700;
+      cursor:pointer;font-family:'Noto Sans KR',sans-serif;
+    ">추가하기</button>`;
+  picker.querySelector("#picker-close")?.addEventListener("click", closePicker);
+  picker.querySelector("#manual-add")?.addEventListener("click", () => {
+    const name = (picker.querySelector("#manual-name") as HTMLInputElement)?.value.trim();
+    const type = (picker.querySelector("#manual-type") as HTMLSelectElement)?.value as School["type"];
+    if (!name) { (picker.querySelector("#manual-name") as HTMLInputElement).style.borderColor = "#ef4444"; return; }
+    onAddSchoolRef.current?.({ name, type, lat, lng });
+    closePicker();
+  });
+  const nameInput = picker.querySelector("#manual-name") as HTMLInputElement;
+  if (nameInput) nameInput.focus();
 }
 
 let kakaoLoaded = false;
@@ -179,118 +347,66 @@ export default function LeafletMap({
         /* 학교 추가 모드: 클릭 위치 기준 학교 검색 */
         closePicker();
         const latlng: kakao.maps.LatLng = mouseEvent.latLng;
-        const wrapper = wrapperRef.current;
-        if (!wrapper) return;
+        const lat = latlng.getLat();
+        const lng = latlng.getLng();
 
-        /* 로딩 피커 표시 */
+        /* 피커를 body에 fixed 위치로 추가 (z-index 문제 완전 회피) */
         const picker = document.createElement("div");
-        picker.style.cssText = `
-          position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-          background:white;border-radius:12px;padding:16px 20px;min-width:260px;
-          box-shadow:0 8px 32px rgba(0,0,0,0.18);z-index:9999;
-          font-family:'Noto Sans KR',sans-serif;
-        `;
-        picker.innerHTML = `<p style="margin:0;color:#475569;font-size:13px;text-align:center;">📍 인근 학교 검색 중...</p>`;
-        wrapper.appendChild(picker);
+        picker.style.cssText = [
+          "position:fixed", "top:50%", "left:50%",
+          "transform:translate(-50%,-50%)",
+          "background:white", "border-radius:14px", "padding:18px 20px",
+          "min-width:280px", "max-width:360px", "width:90vw",
+          "box-shadow:0 12px 40px rgba(0,0,0,0.25)", "z-index:999999",
+          "font-family:'Noto Sans KR',sans-serif",
+        ].join(";");
+        picker.innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <span style="font-size:13px;font-weight:700;color:#1e293b;">📍 인근 학교 검색 중...</span>
+            <button id="picker-close" style="background:none;border:none;cursor:pointer;font-size:18px;color:#94a3b8;line-height:1;padding:0 2px;">✕</button>
+          </div>
+          <div style="height:3px;background:#e2e8f0;border-radius:2px;overflow:hidden;">
+            <div style="height:3px;background:#2563eb;border-radius:2px;animation:pickerLoad 1.5s ease-in-out infinite;width:40%;"></div>
+          </div>`;
+        /* 로딩 애니메이션 스타일 주입 */
+        if (!document.getElementById("picker-anim-style")) {
+          const s = document.createElement("style");
+          s.id = "picker-anim-style";
+          s.textContent = `@keyframes pickerLoad{0%{transform:translateX(-100%)}100%{transform:translateX(350%)}}`;
+          document.head.appendChild(s);
+        }
+        picker.querySelector("#picker-close")?.addEventListener("click", () => closePicker());
+        document.body.appendChild(picker);
         pickerRef.current = picker;
 
-        const ps = new kakao.maps.services.Places();
-        ps.categorySearch("SC4", (results, status) => {
-          if (!pickerRef.current || pickerRef.current !== picker) return;
-
-          if (status !== kakao.maps.services.Status.OK || results.length === 0) {
-            picker.innerHTML = `
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-                <span style="font-size:13px;font-weight:700;color:#1e293b;">검색 결과 없음</span>
-                <button id="picker-close" style="background:none;border:none;cursor:pointer;font-size:16px;color:#94a3b8;">✕</button>
-              </div>
-              <p style="font-size:12px;color:#64748b;margin:0;">이 위치 300m 이내에 학교가 없습니다.<br>다른 곳을 클릭해 보세요.</p>`;
-            picker.querySelector("#picker-close")?.addEventListener("click", () => closePicker());
-            return;
-          }
-
-          /* 중복 제거: 이미 목록에 있는 학교는 "추가됨" 표시 */
-          const existingNames = new Set(schoolsRef.current.map(s => s.name.trim()));
-
-          const itemsHtml = results.slice(0, 8).map((r, i) => {
-            const type = detectTypeFromCategory(r.category_name, r.place_name);
-            const color = SCHOOL_TYPE_COLORS[type];
-            const addr = r.road_address_name || r.address_name;
-            const dist = r.distance ? `${r.distance}m` : "";
-            const added = existingNames.has(r.place_name.trim());
-            return `
-              <div data-idx="${i}" style="
-                display:flex;align-items:center;gap:10px;padding:8px 0;
-                border-bottom:1px solid #f1f5f9;cursor:${added ? "default" : "pointer"};
-                opacity:${added ? 0.5 : 1};
-              ">
-                <div style="
-                  flex-shrink:0;width:36px;height:36px;border-radius:8px;
-                  background:${color}1a;border:1.5px solid ${color};
-                  display:flex;align-items:center;justify-content:center;
-                  font-size:10px;font-weight:700;color:${color};
-                ">${type.replace("학교","").replace("등","")}</div>
-                <div style="flex:1;min-width:0;">
-                  <div style="font-size:13px;font-weight:600;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.place_name}</div>
-                  <div style="font-size:11px;color:#94a3b8;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${addr}${dist ? ` · ${dist}` : ""}</div>
-                </div>
-                ${added
-                  ? `<span style="font-size:10px;color:#16a34a;font-weight:700;flex-shrink:0;">✓ 추가됨</span>`
-                  : `<button data-add="${i}" style="
-                      flex-shrink:0;background:#2563eb;color:white;border:none;
-                      border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;
-                      cursor:pointer;font-family:inherit;
-                    ">+ 추가</button>`
-                }
-              </div>`;
-          }).join("");
-
-          picker.innerHTML = `
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-              <span style="font-size:13px;font-weight:700;color:#1e293b;">📍 인근 학교 (${results.length > 8 ? "8+" : results.length}개)</span>
-              <button id="picker-close" style="background:none;border:none;cursor:pointer;font-size:16px;color:#94a3b8;line-height:1;">✕</button>
-            </div>
-            <div style="max-height:320px;overflow-y:auto;">${itemsHtml}</div>`;
-
-          picker.querySelector("#picker-close")?.addEventListener("click", () => closePicker());
-
-          /* 추가 버튼 이벤트 */
-          picker.querySelectorAll("[data-add]").forEach((btn) => {
-            btn.addEventListener("click", (e) => {
-              e.stopPropagation();
-              const idx = parseInt((btn as HTMLElement).getAttribute("data-add") || "0");
-              const r = results[idx];
-              const type = detectTypeFromCategory(r.category_name, r.place_name);
-              const lat = parseFloat(r.y), lng = parseFloat(r.x);
-              const addr = r.road_address_name || r.address_name;
-              const districtMatch = addr.match(/([가-힣]+구)/);
-              onAddSchoolRef.current?.({
-                name: r.place_name,
-                type,
-                lat, lng,
-                district: districtMatch?.[1],
-              });
-              /* 해당 학교 버튼을 "추가됨"으로 교체 */
-              const row = picker.querySelector(`[data-idx="${idx}"]`);
-              if (row) {
-                (row as HTMLElement).style.opacity = "0.5";
-                (row as HTMLElement).style.cursor = "default";
-                const addBtn = row.querySelector("[data-add]");
-                if (addBtn) {
-                  const span = document.createElement("span");
-                  span.style.cssText = "font-size:10px;color:#16a34a;font-weight:700;flex-shrink:0;";
-                  span.textContent = "✓ 추가됨";
-                  addBtn.replaceWith(span);
-                }
+        /* 1차: 클라이언트 사이드 kakao.maps.services.Places 시도 */
+        const w = window as any;
+        if (w.kakao?.maps?.services?.Places) {
+          try {
+            const ps = new kakao.maps.services.Places();
+            ps.categorySearch("SC4", (results, status) => {
+              if (!pickerRef.current || pickerRef.current !== picker) return;
+              if (status === "OK" && results.length > 0) {
+                const existingNames = new Set(schoolsRef.current.map((s) => s.name.trim()));
+                renderPickerResults(picker, results as SearchDoc[], closePicker, onAddSchoolRef, existingNames);
+              } else {
+                /* 결과 없음 또는 오류 → 서버 폴백 */
+                doServerSearch(lat, lng, picker, closePicker, onAddSchoolRef, schoolsRef);
               }
+            }, {
+              location: latlng,
+              radius: 150,
+              sort: "distance" as any,
+              size: 8,
             });
-          });
-        }, {
-          location: latlng,
-          radius: 300,
-          sort: kakao.maps.services.SortBy.DISTANCE,
-          size: 8,
-        });
+          } catch {
+            /* Places API 사용 불가 → 서버 폴백 */
+            doServerSearch(lat, lng, picker, closePicker, onAddSchoolRef, schoolsRef);
+          }
+        } else {
+          /* services 라이브러리 없음 → 서버 폴백 */
+          doServerSearch(lat, lng, picker, closePicker, onAddSchoolRef, schoolsRef);
+        }
       });
 
       mapRef.current = map;
