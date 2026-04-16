@@ -31,28 +31,27 @@ function loadKakao(callback: () => void) {
   kakaoLoadCallbacks.push(callback);
   if (kakaoLoadCallbacks.length > 1) return;
 
+  const w = window as any;
+
   const runLoad = () => {
-    (window as any).kakao.maps.load(() => {
+    w.kakao.maps.load(() => {
       kakaoLoaded = true;
       kakaoLoadCallbacks.forEach((cb) => cb());
       kakaoLoadCallbacks = [];
     });
   };
 
-  if ((window as any).kakao) {
+  if (w.kakao) {
     runLoad();
-    return;
+  } else {
+    // 스크립트가 아직 파싱 중이면 잠시 대기
+    const timer = setInterval(() => {
+      if (w.kakao) {
+        clearInterval(timer);
+        runLoad();
+      }
+    }, 50);
   }
-
-  const script = document.createElement("script");
-  script.src = `/api/kakao-sdk`;
-  script.async = true;
-  script.onload = runLoad;
-  script.onerror = () => {
-    console.error("[KakaoMap] 스크립트 로드 실패");
-    kakaoLoadCallbacks = [];
-  };
-  document.head.appendChild(script);
 }
 
 export default function LeafletMap({
