@@ -83,27 +83,66 @@ function detectSchoolType(name: string, typeStr?: string): SchoolType {
   return "기타";
 }
 
+const HEADER_KEYWORDS = [
+  "학교명", "업소명", "상호명", "매장명", "이름", "명칭",
+  "위도", "경도", "lat", "lng", "latitude", "longitude",
+  "주소", "address", "구", "district",
+  "구분", "유형", "종류", "type", "좌표",
+];
+
 /**
- * 엑셀 시트를 읽어 헤더 행을 자동 탐지한 뒤 { [컬럼명]: 값 }[] 형태로 반환.
- * - 제목행·빈행이 앞에 있는 한국 정부/공공 데이터 양식 지원
- * - 헤더 행이 앞 15행에 없으면 첫 번째 비어있지 않은 행을 사용
+ * 워크북에서 실제 데이터가 있는 시트를 선택.
+ * - !ref 누락 시 셀 스캔으로 강제 복구
+ * - 모든 시트 중 데이터 행이 가장 많은 시트를 반환
+ */
+function pickBestSheet(workbook: XLSX.WorkBook): { sheet: XLSX.WorkSheet; name: string } | null {
+  let best: { sheet: XLSX.WorkSheet; name: string; count: number } | null = null;
+
+  for (const name of workbook.SheetNames) {
+    const sheet = workbook.Sheets[name];
+    if (!sheet) continue;
+
+    /* !ref 누락 시 셀 키를 스캔해 복구 */
+    if (!sheet["!ref"]) {
+      let maxR = 0, maxC = 0, found = false;
+      for (const key of Object.keys(sheet)) {
+        if (key.startsWith("!")) continue;
+        try {
+          const cell = XLSX.utils.decode_cell(key);
+          maxR = Math.max(maxR, cell.r);
+          maxC = Math.max(maxC, cell.c);
+          found = true;
+        } catch { /* 무시 */ }
+      }
+      if (found) {
+        sheet["!ref"] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: maxR, c: maxC } });
+      }
+    }
+
+    const raw: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" }) as unknown[][];
+    const count = raw.filter((row) => (row as string[]).some((c) => String(c).trim() !== "")).length;
+
+    if (count > 0 && (!best || count > best.count)) {
+      best = { sheet, name, count };
+    }
+  }
+
+  return best ? { sheet: best.sheet, name: best.name } : null;
+}
+
+/**
+ * 시트를 읽어 헤더 행을 자동 탐지한 뒤 { [컬럼명]: 값 }[] 반환.
+ * - 제목행·빈행이 앞에 있는 한국 공공 데이터 양식 지원 (최대 20행 탐색)
  */
 function sheetToRows(sheet: XLSX.WorkSheet): {
   rows: Record<string, string>[];
   detectedHeaders: string[];
   rawRowCount: number;
 } {
-  const raw: string[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" }) as string[][];
+  const raw: string[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: false }) as string[][];
   if (raw.length === 0) return { rows: [], detectedHeaders: [], rawRowCount: 0 };
 
-  const HEADER_KEYWORDS = [
-    "학교명", "업소명", "상호명", "매장명", "이름", "명칭",
-    "위도", "경도", "lat", "lng", "latitude", "longitude",
-    "주소", "address", "구", "district",
-    "구분", "유형", "종류", "type", "좌표",
-  ];
-
-  /* 최대 20행 탐색 – 키워드 점수가 가장 높은 행을 헤더로 */
+  /* 최대 20행에서 키워드 점수가 가장 높은 행을 헤더로 선택 */
   let bestRow = -1;
   let bestScore = -1;
   for (let i = 0; i < Math.min(raw.length, 20); i++) {
@@ -111,8 +150,7 @@ function sheetToRows(sheet: XLSX.WorkSheet): {
     if (nonEmpty < 1) continue;
     const rowText = raw[i].map((c) => String(c).trim().toLowerCase()).join(" ");
     const score = HEADER_KEYWORDS.filter((k) => rowText.includes(k.toLowerCase())).length;
-    /* 키워드가 없어도 처음 만나는 비어있지 않은 행을 후보로 */
-    if (bestRow === -1) bestRow = i;
+    if (bestRow === -1) bestRow = i;          /* 첫 비어있지 않은 행을 기본 후보로 */
     if (score > bestScore) { bestScore = score; bestRow = i; }
   }
   if (bestRow === -1) bestRow = 0;
@@ -174,16 +212,25 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
       reader.onload = (e) => {
         try {
           const data = new Uint8Array(e.target?.result as ArrayBuffer);
-          const workbook = XLSX.read(data, { type: "array", codepage: 65001 });
-          const sheet = workbook.Sheets[workbook.SheetNames[0]];
-          const { rows, detectedHeaders, rawRowCount } = sheetToRows(sheet);
+          const workbook = XLSX.read(data, { type: "array", raw: false });
+          const sheetNames = workbook.SheetNames;
+
+          const picked = pickBestSheet(workbook);
+          if (!picked) {
+            setSchoolError(
+              `데이터 시트를 찾을 수 없습니다.\n` +
+              `시트 목록: ${sheetNames.join(", ") || "(없음)"}\n` +
+              "데이터가 있는 시트에 !ref 정보가 없거나 빈 파일일 수 있습니다."
+            );
+            return;
+          }
+
+          const { rows, detectedHeaders, rawRowCount } = sheetToRows(picked.sheet);
 
           if (rows.length === 0) {
             setSchoolError(
-              rawRowCount === 0
-                ? "파일이 비어 있습니다."
-                : `데이터 행을 찾지 못했습니다 (원시 행 수: ${rawRowCount}).\n` +
-                  "헤더 바로 아래에 데이터가 있는지 확인해 주세요."
+              `시트 "${picked.name}"에서 데이터 행을 찾지 못했습니다 (원시 행 수: ${rawRowCount}).\n` +
+              "헤더 행 바로 아래에 데이터가 있는지 확인해 주세요."
             );
             return;
           }
@@ -265,16 +312,25 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
       reader.onload = (e) => {
         try {
           const data = new Uint8Array(e.target?.result as ArrayBuffer);
-          const workbook = XLSX.read(data, { type: "array", codepage: 65001 });
-          const sheet = workbook.Sheets[workbook.SheetNames[0]];
-          const { rows, detectedHeaders, rawRowCount } = sheetToRows(sheet);
+          const workbook = XLSX.read(data, { type: "array", raw: false });
+          const sheetNames = workbook.SheetNames;
+
+          const picked = pickBestSheet(workbook);
+          if (!picked) {
+            setTobaccoError(
+              `데이터 시트를 찾을 수 없습니다.\n` +
+              `시트 목록: ${sheetNames.join(", ") || "(없음)"}\n` +
+              "데이터가 있는 시트에 !ref 정보가 없거나 빈 파일일 수 있습니다."
+            );
+            return;
+          }
+
+          const { rows, detectedHeaders, rawRowCount } = sheetToRows(picked.sheet);
 
           if (rows.length === 0) {
             setTobaccoError(
-              rawRowCount === 0
-                ? "파일이 비어 있습니다."
-                : `데이터 행을 찾지 못했습니다 (원시 행 수: ${rawRowCount}).\n` +
-                  "헤더 바로 아래에 데이터가 있는지 확인해 주세요."
+              `시트 "${picked.name}"에서 데이터 행을 찾지 못했습니다 (원시 행 수: ${rawRowCount}).\n` +
+              "헤더 행 바로 아래에 데이터가 있는지 확인해 주세요."
             );
             return;
           }
