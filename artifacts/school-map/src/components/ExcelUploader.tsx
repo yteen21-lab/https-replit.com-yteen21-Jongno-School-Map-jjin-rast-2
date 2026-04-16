@@ -85,35 +85,40 @@ function detectSchoolType(name: string, typeStr?: string): SchoolType {
 
 /**
  * 엑셀 시트를 읽어 헤더 행을 자동 탐지한 뒤 { [컬럼명]: 값 }[] 형태로 반환.
- * 제목행·빈행이 앞에 있는 한국 정부/공공 데이터 양식도 처리.
+ * - 제목행·빈행이 앞에 있는 한국 정부/공공 데이터 양식 지원
+ * - 헤더 행이 앞 15행에 없으면 첫 번째 비어있지 않은 행을 사용
  */
-function sheetToRows(sheet: XLSX.WorkSheet): { rows: Record<string, string>[]; detectedHeaders: string[] } {
-  // 1) 원시 2D 배열로 읽기
+function sheetToRows(sheet: XLSX.WorkSheet): {
+  rows: Record<string, string>[];
+  detectedHeaders: string[];
+  rawRowCount: number;
+} {
   const raw: string[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" }) as string[][];
-  if (raw.length === 0) return { rows: [], detectedHeaders: [] };
+  if (raw.length === 0) return { rows: [], detectedHeaders: [], rawRowCount: 0 };
 
-  // 2) 헤더 행 탐지: 최소 2개 이상의 비어있지 않은 셀이 있는 첫 행
-  //    그 중에서도 알려진 키워드가 가장 많이 포함된 행을 우선
   const HEADER_KEYWORDS = [
     "학교명", "업소명", "상호명", "매장명", "이름", "명칭",
     "위도", "경도", "lat", "lng", "latitude", "longitude",
     "주소", "address", "구", "district",
-    "구분", "유형", "종류", "type",
+    "구분", "유형", "종류", "type", "좌표",
   ];
 
-  let bestRow = 0;
+  /* 최대 20행 탐색 – 키워드 점수가 가장 높은 행을 헤더로 */
+  let bestRow = -1;
   let bestScore = -1;
-  for (let i = 0; i < Math.min(raw.length, 15); i++) {
+  for (let i = 0; i < Math.min(raw.length, 20); i++) {
     const nonEmpty = raw[i].filter((c) => String(c).trim() !== "").length;
-    if (nonEmpty < 2) continue;
+    if (nonEmpty < 1) continue;
     const rowText = raw[i].map((c) => String(c).trim().toLowerCase()).join(" ");
     const score = HEADER_KEYWORDS.filter((k) => rowText.includes(k.toLowerCase())).length;
+    /* 키워드가 없어도 처음 만나는 비어있지 않은 행을 후보로 */
+    if (bestRow === -1) bestRow = i;
     if (score > bestScore) { bestScore = score; bestRow = i; }
   }
+  if (bestRow === -1) bestRow = 0;
 
   const headers = raw[bestRow].map((c) => String(c).trim());
 
-  // 3) 헤더 이후 행들을 객체 배열로 변환
   const rows: Record<string, string>[] = [];
   for (let i = bestRow + 1; i < raw.length; i++) {
     const row = raw[i];
@@ -128,7 +133,25 @@ function sheetToRows(sheet: XLSX.WorkSheet): { rows: Record<string, string>[]; d
     if (hasValue) rows.push(obj);
   }
 
-  return { rows, detectedHeaders: headers.filter(Boolean) };
+  return { rows, detectedHeaders: headers.filter(Boolean), rawRowCount: raw.length };
+}
+
+/**
+ * 하나의 문자열 값에서 위도/경도 쌍을 추출.
+ * 예: "37.5665,126.9780" / "37.5665 126.9780" / "37.5665/126.9780"
+ * 위도(30~40) · 경도(120~135) 범위로 어느 값이 위도인지 자동 판별.
+ */
+function extractLatLng(value: string): [number, number] | null {
+  const nums = Array.from(value.matchAll(/\d+\.?\d*/g))
+    .map((m) => parseFloat(m[0]))
+    .filter((n) => !isNaN(n) && n > 0);
+
+  for (let i = 0; i < nums.length - 1; i++) {
+    const a = nums[i], b = nums[i + 1];
+    if (a >= 30 && a <= 40 && b >= 120 && b <= 135) return [a, b];
+    if (b >= 30 && b <= 40 && a >= 120 && a <= 135) return [b, a];
+  }
+  return null;
 }
 
 export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }: ExcelUploaderProps) {
@@ -153,10 +176,15 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
           const data = new Uint8Array(e.target?.result as ArrayBuffer);
           const workbook = XLSX.read(data, { type: "array", codepage: 65001 });
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
-          const { rows, detectedHeaders } = sheetToRows(sheet);
+          const { rows, detectedHeaders, rawRowCount } = sheetToRows(sheet);
 
           if (rows.length === 0) {
-            setSchoolError("데이터를 찾을 수 없습니다.\n헤더 행과 데이터가 있는지 확인해 주세요.");
+            setSchoolError(
+              rawRowCount === 0
+                ? "파일이 비어 있습니다."
+                : `데이터 행을 찾지 못했습니다 (원시 행 수: ${rawRowCount}).\n` +
+                  "헤더 바로 아래에 데이터가 있는지 확인해 주세요."
+            );
             return;
           }
 
@@ -165,33 +193,57 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
               candidates.some((c) => k.trim().toLowerCase().includes(c.toLowerCase()))
             );
 
-          const nameKey = findKey("학교명", "학교 명", "name", "학교", "이름", "명칭", "학교이름");
-          const latKey  = findKey("위도", "lat", "latitude", "y좌표", "y_좌표", "위도(y)");
-          const lngKey  = findKey("경도", "lng", "lon", "longitude", "x좌표", "x_좌표", "경도(x)");
-          const typeKey = findKey("구분", "종류", "type", "학교구분", "학교종류", "유형", "학교유형");
-          const distKey = findKey("구", "district", "지역", "행정구", "자치구");
-          const addrKey = findKey("주소", "address", "addr", "도로명", "지번", "소재지");
+          const nameKey  = findKey("학교명", "학교 명", "name", "학교", "이름", "명칭", "학교이름");
+          const latKey   = findKey("위도", "lat", "latitude", "y좌표", "y_좌표", "위도(y)");
+          const lngKey   = findKey("경도", "lng", "lon", "longitude", "x좌표", "x_좌표", "경도(x)");
+          /* 위도·경도가 한 열에 합쳐진 경우 ("위도,경도" / "좌표" / "coordinates") */
+          const coordKey = (!latKey || !lngKey)
+            ? findKey("위도,경도", "경도,위도", "좌표", "coordinates", "coord", "lat,lng", "latlng", "위경도")
+            : undefined;
+          const typeKey  = findKey("구분", "종류", "type", "학교구분", "학교종류", "유형", "학교유형");
+          const distKey  = findKey("구", "district", "지역", "행정구", "자치구");
+          const addrKey  = findKey("주소", "address", "addr", "도로명", "지번", "소재지");
 
-          if (!nameKey || !latKey || !lngKey) {
-            const missing = [!nameKey && "학교명", !latKey && "위도", !lngKey && "경도"].filter(Boolean).join(", ");
-            setSchoolError(`필수 컬럼 없음: ${missing}\n감지된 컬럼: ${detectedHeaders.join(", ")}`);
+          if (!nameKey || (!latKey && !lngKey && !coordKey)) {
+            const missing: string[] = [];
+            if (!nameKey) missing.push("학교명(이름)");
+            if (!latKey && !lngKey && !coordKey) missing.push("위도·경도 (또는 합산 좌표열)");
+            setSchoolError(
+              `필수 컬럼 없음: ${missing.join(", ")}\n감지된 컬럼: ${detectedHeaders.join(", ") || "(없음)"}`
+            );
             return;
           }
 
           const schools: School[] = rows.map((row, i) => {
-            const name = String(row[nameKey] || "").trim();
-            const lat  = parseFloat(String(row[latKey] || "").replace(/,/g, ""));
-            const lng  = parseFloat(String(row[lngKey] || "").replace(/,/g, ""));
-            const typeStr = typeKey ? String(row[typeKey] || "") : "";
-            const district = distKey ? String(row[distKey] || "").trim() || undefined
+            const name = String(row[nameKey!] || "").trim();
+
+            let lat: number, lng: number;
+            if (coordKey && row[coordKey]) {
+              /* 합산 열: "37.5665,126.9780" 형식 자동 분리 */
+              const pair = extractLatLng(String(row[coordKey]));
+              if (!pair) return null;
+              [lat, lng] = pair;
+            } else {
+              lat = parseFloat(String(row[latKey!] || "").replace(/[, ]/g, ""));
+              lng = parseFloat(String(row[lngKey!] || "").replace(/[, ]/g, ""));
+            }
+
+            const typeStr  = typeKey ? String(row[typeKey] || "") : "";
+            const district = distKey
+              ? String(row[distKey] || "").trim() || undefined
               : addrKey ? String(row[addrKey] || "").match(/([가-힣]+구)/)?.[1] : undefined;
+
             if (!name || isNaN(lat) || isNaN(lng)) return null;
             if (lat < 30 || lat > 40 || lng < 120 || lng > 135) return null;
             return { id: `excel-s${Date.now()}-${i}`, name, lat, lng, type: detectSchoolType(name, typeStr), district } as School;
           }).filter(Boolean) as School[];
 
           if (schools.length === 0) {
-            setSchoolError("유효한 행이 없습니다.\n위도(30~40)·경도(120~135) 범위를 확인해 주세요.");
+            setSchoolError(
+              `유효한 행이 없습니다 (전체 ${rows.length}행 처리).\n` +
+              "• 위도 범위: 30 ~ 40\n• 경도 범위: 120 ~ 135\n" +
+              (coordKey ? `• 좌표 열 "${coordKey}" 에서 숫자 쌍을 추출 시도함` : "")
+            );
             return;
           }
           setSchoolSuccess(schools.length);
@@ -215,10 +267,15 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
           const data = new Uint8Array(e.target?.result as ArrayBuffer);
           const workbook = XLSX.read(data, { type: "array", codepage: 65001 });
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
-          const { rows, detectedHeaders } = sheetToRows(sheet);
+          const { rows, detectedHeaders, rawRowCount } = sheetToRows(sheet);
 
           if (rows.length === 0) {
-            setTobaccoError("데이터를 찾을 수 없습니다.\n헤더 행과 데이터가 있는지 확인해 주세요.");
+            setTobaccoError(
+              rawRowCount === 0
+                ? "파일이 비어 있습니다."
+                : `데이터 행을 찾지 못했습니다 (원시 행 수: ${rawRowCount}).\n` +
+                  "헤더 바로 아래에 데이터가 있는지 확인해 주세요."
+            );
             return;
           }
 
@@ -230,6 +287,10 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
           const nameKey     = findKey("업소명", "상호명", "매장명", "name", "이름", "명칭", "상호", "매장");
           const latKey      = findKey("위도", "lat", "latitude", "y좌표", "y_좌표", "위도(y)");
           const lngKey      = findKey("경도", "lng", "lon", "longitude", "x좌표", "x_좌표", "경도(x)");
+          /* 위도·경도 합산 열 */
+          const coordKey    = (!latKey || !lngKey)
+            ? findKey("위도,경도", "경도,위도", "좌표", "coordinates", "coord", "lat,lng", "latlng", "위경도")
+            : undefined;
           const addressKey  = findKey("주소", "address", "addr", "도로명", "지번", "소재지");
           const shopTypeKey = findKey(
             "매장유형", "운영유형", "판매유형", "업소유형", "유형구분",
@@ -237,18 +298,31 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
             "shoptype", "type", "category"
           );
 
-          if (!nameKey || !latKey || !lngKey) {
-            const missing = [!nameKey && "업소명", !latKey && "위도", !lngKey && "경도"].filter(Boolean).join(", ");
-            setTobaccoError(`필수 컬럼 없음: ${missing}\n감지된 컬럼: ${detectedHeaders.join(", ")}`);
+          if (!nameKey || (!latKey && !lngKey && !coordKey)) {
+            const missing: string[] = [];
+            if (!nameKey) missing.push("업소명(이름)");
+            if (!latKey && !lngKey && !coordKey) missing.push("위도·경도 (또는 합산 좌표열)");
+            setTobaccoError(
+              `필수 컬럼 없음: ${missing.join(", ")}\n감지된 컬럼: ${detectedHeaders.join(", ") || "(없음)"}`
+            );
             return;
           }
 
           const shops: TobaccoShop[] = rows.map((row, i) => {
-            const name    = String(row[nameKey] || "").trim();
-            const lat     = parseFloat(String(row[latKey] || "").replace(/,/g, ""));
-            const lng     = parseFloat(String(row[lngKey] || "").replace(/,/g, ""));
-            const address = addressKey ? String(row[addressKey] || "").trim() || undefined : undefined;
-            const rawType = shopTypeKey ? String(row[shopTypeKey] || "").trim() : "";
+            const name = String(row[nameKey!] || "").trim();
+
+            let lat: number, lng: number;
+            if (coordKey && row[coordKey]) {
+              const pair = extractLatLng(String(row[coordKey]));
+              if (!pair) return null;
+              [lat, lng] = pair;
+            } else {
+              lat = parseFloat(String(row[latKey!] || "").replace(/[, ]/g, ""));
+              lng = parseFloat(String(row[lngKey!] || "").replace(/[, ]/g, ""));
+            }
+
+            const address  = addressKey ? String(row[addressKey] || "").trim() || undefined : undefined;
+            const rawType  = shopTypeKey ? String(row[shopTypeKey] || "").trim() : "";
             const shopType = shopTypeOverride !== "auto" ? shopTypeOverride : autoDetectShopType(name, rawType);
             if (!name || isNaN(lat) || isNaN(lng)) return null;
             if (lat < 30 || lat > 40 || lng < 120 || lng > 135) return null;
@@ -256,7 +330,10 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
           }).filter(Boolean) as TobaccoShop[];
 
           if (shops.length === 0) {
-            setTobaccoError("유효한 행이 없습니다.\n위도(30~40)·경도(120~135) 범위를 확인해 주세요.");
+            setTobaccoError(
+              `유효한 행이 없습니다 (전체 ${rows.length}행 처리).\n` +
+              "• 위도 범위: 30 ~ 40\n• 경도 범위: 120 ~ 135"
+            );
             return;
           }
           const muIn = shops.filter(s => s.shopType !== "유인").length;
@@ -335,8 +412,12 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
 
           <div className="bg-slate-50 rounded-lg p-2 text-[10px] text-slate-500 space-y-0.5">
             <p className="font-semibold text-slate-600">컬럼 안내</p>
-            <p>• 필수: <span className="font-mono">학교명, 위도, 경도</span></p>
-            <p>• 선택: <span className="font-mono">학교구분, 구</span></p>
+            <p>• 이름: <span className="font-mono">학교명 / 이름 / name</span></p>
+            <p>• 위치 <span className="text-green-700 font-semibold">(택1)</span></p>
+            <p className="pl-2">① 분리: <span className="font-mono">위도</span> + <span className="font-mono">경도</span> (별도 열)</p>
+            <p className="pl-2">② 합산: <span className="font-mono">위도,경도</span> 또는 <span className="font-mono">좌표</span> 한 열에 <span className="font-mono">37.56,126.97</span> 형식</p>
+            <p>• 선택: <span className="font-mono">학교구분, 구, 주소</span></p>
+            <p className="text-[9px] text-slate-400 pt-0.5">※ 제목행·빈행이 앞에 있어도 자동 건너뜀</p>
           </div>
         </div>
       )}
