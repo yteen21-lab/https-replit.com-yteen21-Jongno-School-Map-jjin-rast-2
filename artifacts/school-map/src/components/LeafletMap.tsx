@@ -45,7 +45,7 @@ function loadKakao(callback: () => void) {
   }
 
   const script = document.createElement("script");
-  script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_APP_KEY}&autoload=false`;
+  script.src = `/api/kakao-sdk`;
   script.async = true;
   script.onload = runLoad;
   script.onerror = () => {
