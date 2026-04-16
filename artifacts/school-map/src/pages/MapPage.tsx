@@ -208,6 +208,7 @@ export default function MapPage() {
     | { kind: "tobacco"; item: TobaccoShop }
     | null
   >(null);
+  const [addSchoolMode, setAddSchoolMode] = useState(false);
   const isResizing = useRef(false);
   /* 최신 상태를 handleSave에서 안전하게 읽기 위한 ref */
   const schoolsRef = useRef(schools);
@@ -358,6 +359,17 @@ export default function MapPage() {
       saveToStorage(STORAGE_KEY_TOBACCO, next);
       return next;
     });
+  }, []);
+
+  /* 지도 클릭으로 학교 추가 */
+  const handleAddSchoolFromMap = useCallback((school: Omit<School, "id">) => {
+    const newSchool: School = { ...school, id: `map-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` };
+    setSchools((prev) => {
+      const next = [...prev, newSchool];
+      saveToStorage(STORAGE_KEY_SCHOOLS, next);
+      return next;
+    });
+    setSelectedSchool(newSchool);
   }, []);
 
   const handleSave = useCallback(() => {
@@ -720,7 +732,22 @@ export default function MapPage() {
           showRadius200={showRadius200}
           showTobacco={showTobacco}
           districtPolygon={districtPolygon}
+          addSchoolMode={addSchoolMode}
+          onAddSchoolFromMap={handleAddSchoolFromMap}
         />
+
+        {/* 지도에서 학교 추가 모드 토글 버튼 */}
+        <button
+          onClick={() => setAddSchoolMode((v) => !v)}
+          className={`absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold shadow-lg transition-all ${
+            addSchoolMode
+              ? "bg-blue-600 text-white ring-2 ring-blue-300"
+              : "bg-white text-slate-700 border border-slate-200 hover:bg-blue-50"
+          }`}
+        >
+          <SchoolIcon size={15} />
+          {addSchoolMode ? "📍 지도 클릭으로 학교 추가 중… (다시 클릭해 해제)" : "지도에서 학교 추가"}
+        </button>
 
         {/* Legend + ZoneShopPanel overlay */}
         <div className="absolute top-4 right-4 z-[1000] flex items-start gap-2">

@@ -105,9 +105,51 @@ declare namespace kakao {
       function addListener(
         target: Map | Marker | CustomOverlay | Circle | Polygon,
         type: string,
-        handler: (e?: MouseEvent) => void
+        handler: (e?: any) => void
       ): object;
       function removeListener(listener: object): void;
+    }
+
+    namespace services {
+      enum Status {
+        OK = "OK",
+        ZERO_RESULT = "ZERO_RESULT",
+        ERROR = "ERROR",
+      }
+      enum SortBy {
+        ACCURACY = "accuracy",
+        DISTANCE = "distance",
+      }
+      interface PlaceSearchOptions {
+        location?: LatLng;
+        radius?: number;
+        sort?: SortBy;
+        category_group_code?: string;
+        size?: number;
+      }
+      interface PlaceSearchResult {
+        id: string;
+        place_name: string;
+        category_name: string;
+        category_group_code: string;
+        address_name: string;
+        road_address_name: string;
+        x: string;
+        y: string;
+        distance: string;
+      }
+      class Places {
+        categorySearch(
+          code: string,
+          callback: (result: PlaceSearchResult[], status: Status) => void,
+          options?: PlaceSearchOptions
+        ): void;
+        keywordSearch(
+          keyword: string,
+          callback: (result: PlaceSearchResult[], status: Status) => void,
+          options?: PlaceSearchOptions
+        ): void;
+      }
     }
   }
 }

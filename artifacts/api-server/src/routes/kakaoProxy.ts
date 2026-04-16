@@ -10,7 +10,7 @@ router.get("/kakao-sdk", async (req, res) => {
   }
 
   try {
-    const kakaoUrl = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${appKey}&autoload=false`;
+    const kakaoUrl = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${appKey}&autoload=false&libraries=services`;
     const response = await fetch(kakaoUrl);
 
     if (!response.ok) {

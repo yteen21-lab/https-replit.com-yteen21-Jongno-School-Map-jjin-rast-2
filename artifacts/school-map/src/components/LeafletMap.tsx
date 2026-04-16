@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from "react";
 import {
-  School, TobaccoShop,
+  School, TobaccoShop, SchoolType,
   SCHOOL_TYPE_COLORS, CIRCLE_CONFIGS,
   TOBACCO_ZONE_COLORS, getTobaccoZone,
 } from "@/types/school";
@@ -15,6 +15,8 @@ interface LeafletMapProps {
   showRadius200: boolean;
   showTobacco: boolean;
   districtPolygon?: [number, number][];
+  addSchoolMode?: boolean;
+  onAddSchoolFromMap?: (school: Omit<School, "id">) => void;
 }
 
 const SEOUL_CENTER = { lat: 37.5665, lng: 126.9780 };
@@ -55,6 +57,15 @@ function groupNearbySchools(schools: School[], threshold = CLUSTER_THRESHOLD_M):
     map.get(root)!.push(i);
   }
   return Array.from(map.values()).map(idx => idx.map(i => schools[i]));
+}
+
+/* ── 카카오 Places 카테고리에서 학교 구분 감지 ── */
+function detectTypeFromCategory(categoryName: string, placeName: string): SchoolType {
+  const cat = categoryName + " " + placeName;
+  if (cat.includes("초등학교") || /초$/.test(placeName) || cat.includes("초교")) return "초등학교";
+  if (cat.includes("중학교") || /중$/.test(placeName)) return "중학교";
+  if (cat.includes("고등학교") || /고$/.test(placeName) || cat.includes("고교")) return "고등학교";
+  return "기타";
 }
 
 let kakaoLoaded = false;
@@ -98,13 +109,20 @@ export default function LeafletMap({
   showRadius200,
   showTobacco,
   districtPolygon,
+  addSchoolMode = false,
+  onAddSchoolFromMap,
 }: LeafletMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<kakao.maps.Map | null>(null);
   const schoolLayersRef = useRef<KakaoLayer[]>([]);
   const tobaccoLayersRef = useRef<KakaoLayer[]>([]);
   const districtLayerRef = useRef<kakao.maps.Polygon | null>(null);
   const openPopupRef = useRef<HTMLElement | null>(null);
+  const pickerRef = useRef<HTMLElement | null>(null);
+  const addSchoolModeRef = useRef(addSchoolMode);
+  const onAddSchoolRef = useRef(onAddSchoolFromMap);
+  const schoolsRef = useRef(schools);
 
   const clearSchoolLayers = useCallback(() => {
     schoolLayersRef.current.forEach((l) => l.setMap(null));
@@ -120,6 +138,23 @@ export default function LeafletMap({
     }
   }, []);
 
+  const closePicker = useCallback(() => {
+    if (pickerRef.current) { pickerRef.current.remove(); pickerRef.current = null; }
+  }, []);
+
+  /* ref 동기화 */
+  useEffect(() => { addSchoolModeRef.current = addSchoolMode; }, [addSchoolMode]);
+  useEffect(() => { onAddSchoolRef.current = onAddSchoolFromMap; }, [onAddSchoolFromMap]);
+  useEffect(() => { schoolsRef.current = schools; }, [schools]);
+
+  /* addSchoolMode 변경 시 커서 스타일 변경 */
+  useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.style.cursor = addSchoolMode ? "crosshair" : "";
+    }
+    if (!addSchoolMode) closePicker();
+  }, [addSchoolMode, closePicker]);
+
   /* ── 지도 초기화 ── */
   useEffect(() => {
     if (!containerRef.current) return;
@@ -133,12 +168,129 @@ export default function LeafletMap({
         level: SEOUL_LEVEL,
       });
 
-      kakao.maps.event.addListener(map, "click", () => {
-        onSelectSchool(null);
-        if (openPopupRef.current) {
-          openPopupRef.current.remove();
-          openPopupRef.current = null;
+      kakao.maps.event.addListener(map, "click", (mouseEvent: any) => {
+        /* 일반 모드: 선택 해제 + 팝업 닫기 */
+        if (!addSchoolModeRef.current) {
+          onSelectSchool(null);
+          if (openPopupRef.current) { openPopupRef.current.remove(); openPopupRef.current = null; }
+          return;
         }
+
+        /* 학교 추가 모드: 클릭 위치 기준 학교 검색 */
+        closePicker();
+        const latlng: kakao.maps.LatLng = mouseEvent.latLng;
+        const wrapper = wrapperRef.current;
+        if (!wrapper) return;
+
+        /* 로딩 피커 표시 */
+        const picker = document.createElement("div");
+        picker.style.cssText = `
+          position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+          background:white;border-radius:12px;padding:16px 20px;min-width:260px;
+          box-shadow:0 8px 32px rgba(0,0,0,0.18);z-index:9999;
+          font-family:'Noto Sans KR',sans-serif;
+        `;
+        picker.innerHTML = `<p style="margin:0;color:#475569;font-size:13px;text-align:center;">📍 인근 학교 검색 중...</p>`;
+        wrapper.appendChild(picker);
+        pickerRef.current = picker;
+
+        const ps = new kakao.maps.services.Places();
+        ps.categorySearch("SC4", (results, status) => {
+          if (!pickerRef.current || pickerRef.current !== picker) return;
+
+          if (status !== kakao.maps.services.Status.OK || results.length === 0) {
+            picker.innerHTML = `
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <span style="font-size:13px;font-weight:700;color:#1e293b;">검색 결과 없음</span>
+                <button id="picker-close" style="background:none;border:none;cursor:pointer;font-size:16px;color:#94a3b8;">✕</button>
+              </div>
+              <p style="font-size:12px;color:#64748b;margin:0;">이 위치 300m 이내에 학교가 없습니다.<br>다른 곳을 클릭해 보세요.</p>`;
+            picker.querySelector("#picker-close")?.addEventListener("click", () => closePicker());
+            return;
+          }
+
+          /* 중복 제거: 이미 목록에 있는 학교는 "추가됨" 표시 */
+          const existingNames = new Set(schoolsRef.current.map(s => s.name.trim()));
+
+          const itemsHtml = results.slice(0, 8).map((r, i) => {
+            const type = detectTypeFromCategory(r.category_name, r.place_name);
+            const color = SCHOOL_TYPE_COLORS[type];
+            const addr = r.road_address_name || r.address_name;
+            const dist = r.distance ? `${r.distance}m` : "";
+            const added = existingNames.has(r.place_name.trim());
+            return `
+              <div data-idx="${i}" style="
+                display:flex;align-items:center;gap:10px;padding:8px 0;
+                border-bottom:1px solid #f1f5f9;cursor:${added ? "default" : "pointer"};
+                opacity:${added ? 0.5 : 1};
+              ">
+                <div style="
+                  flex-shrink:0;width:36px;height:36px;border-radius:8px;
+                  background:${color}1a;border:1.5px solid ${color};
+                  display:flex;align-items:center;justify-content:center;
+                  font-size:10px;font-weight:700;color:${color};
+                ">${type.replace("학교","").replace("등","")}</div>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:13px;font-weight:600;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.place_name}</div>
+                  <div style="font-size:11px;color:#94a3b8;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${addr}${dist ? ` · ${dist}` : ""}</div>
+                </div>
+                ${added
+                  ? `<span style="font-size:10px;color:#16a34a;font-weight:700;flex-shrink:0;">✓ 추가됨</span>`
+                  : `<button data-add="${i}" style="
+                      flex-shrink:0;background:#2563eb;color:white;border:none;
+                      border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;
+                      cursor:pointer;font-family:inherit;
+                    ">+ 추가</button>`
+                }
+              </div>`;
+          }).join("");
+
+          picker.innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+              <span style="font-size:13px;font-weight:700;color:#1e293b;">📍 인근 학교 (${results.length > 8 ? "8+" : results.length}개)</span>
+              <button id="picker-close" style="background:none;border:none;cursor:pointer;font-size:16px;color:#94a3b8;line-height:1;">✕</button>
+            </div>
+            <div style="max-height:320px;overflow-y:auto;">${itemsHtml}</div>`;
+
+          picker.querySelector("#picker-close")?.addEventListener("click", () => closePicker());
+
+          /* 추가 버튼 이벤트 */
+          picker.querySelectorAll("[data-add]").forEach((btn) => {
+            btn.addEventListener("click", (e) => {
+              e.stopPropagation();
+              const idx = parseInt((btn as HTMLElement).getAttribute("data-add") || "0");
+              const r = results[idx];
+              const type = detectTypeFromCategory(r.category_name, r.place_name);
+              const lat = parseFloat(r.y), lng = parseFloat(r.x);
+              const addr = r.road_address_name || r.address_name;
+              const districtMatch = addr.match(/([가-힣]+구)/);
+              onAddSchoolRef.current?.({
+                name: r.place_name,
+                type,
+                lat, lng,
+                district: districtMatch?.[1],
+              });
+              /* 해당 학교 버튼을 "추가됨"으로 교체 */
+              const row = picker.querySelector(`[data-idx="${idx}"]`);
+              if (row) {
+                (row as HTMLElement).style.opacity = "0.5";
+                (row as HTMLElement).style.cursor = "default";
+                const addBtn = row.querySelector("[data-add]");
+                if (addBtn) {
+                  const span = document.createElement("span");
+                  span.style.cssText = "font-size:10px;color:#16a34a;font-weight:700;flex-shrink:0;";
+                  span.textContent = "✓ 추가됨";
+                  addBtn.replaceWith(span);
+                }
+              }
+            });
+          });
+        }, {
+          location: latlng,
+          radius: 300,
+          sort: kakao.maps.services.SortBy.DISTANCE,
+          size: 8,
+        });
       });
 
       mapRef.current = map;
@@ -148,6 +300,7 @@ export default function LeafletMap({
       destroyed = true;
       clearSchoolLayers();
       clearTobaccoLayers();
+      closePicker();
       if (districtLayerRef.current) districtLayerRef.current.setMap(null);
       mapRef.current = null;
     };
@@ -397,6 +550,8 @@ export default function LeafletMap({
   }, [selectedTobaccoShop]);
 
   return (
-    <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
+    <div ref={wrapperRef} style={{ width: "100%", height: "100%", position: "relative" }}>
+      <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
+    </div>
   );
 }
