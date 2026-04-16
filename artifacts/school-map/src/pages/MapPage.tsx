@@ -5,7 +5,7 @@ import SchoolList, { highlight } from "@/components/SchoolList";
 import Legend from "@/components/Legend";
 import ZoneShopPanel from "@/components/ZoneShopPanel";
 import {
-  School, TobaccoShop,
+  School, TobaccoShop, SchoolType,
   SAMPLE_SCHOOLS, SAMPLE_TOBACCO_SHOPS,
   getTobaccoZone, haversineDistance,
   SCHOOL_TYPE_COLORS, TOBACCO_ZONE_COLORS,
@@ -172,6 +172,7 @@ export default function MapPage() {
   const [showMuIn, setShowMuIn] = useState(true);
   const [showYuIn, setShowYuIn] = useState(true);
   const [activeZonePanel, setActiveZonePanel] = useState<null | "50m" | "200m">(null);
+  const [activeSchoolType, setActiveSchoolType] = useState<SchoolType | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT);
   const [activeTab, setActiveTab] = useState<"upload" | "list">("list");
@@ -221,14 +222,16 @@ export default function MapPage() {
 
   const filteredSchools = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return schools;
-    return schools.filter(
+    let result = schools;
+    if (activeSchoolType) result = result.filter((s) => s.type === activeSchoolType);
+    if (!q) return result;
+    return result.filter(
       (s) =>
         s.name.toLowerCase().includes(q) ||
         s.type.includes(q) ||
         (s.district?.toLowerCase().includes(q) ?? false)
     );
-  }, [schools, searchQuery]);
+  }, [schools, searchQuery, activeSchoolType]);
 
   const filteredTobaccoShops = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -650,7 +653,7 @@ export default function MapPage() {
           )}
 
           <Legend
-            schools={filteredSchools}
+            schools={schools}
             tobaccoShops={tobaccoShops}
             showRadius50={showRadius50}
             showRadius200={showRadius200}
@@ -658,6 +661,7 @@ export default function MapPage() {
             showMuIn={showMuIn}
             showYuIn={showYuIn}
             activeZonePanel={activeZonePanel}
+            activeSchoolType={activeSchoolType}
             onToggleRadius50={() => setShowRadius50((v) => !v)}
             onToggleRadius200={() => setShowRadius200((v) => !v)}
             onToggleTobacco={() => setShowTobacco((v) => !v)}
@@ -665,6 +669,9 @@ export default function MapPage() {
             onToggleYuIn={() => setShowYuIn((v) => !v)}
             onOpenZonePanel={(zone) =>
               setActiveZonePanel((prev) => prev === zone ? null : zone)
+            }
+            onToggleSchoolType={(type) =>
+              setActiveSchoolType((prev) => prev === type ? null : type)
             }
           />
         </div>

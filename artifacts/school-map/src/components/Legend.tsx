@@ -11,12 +11,14 @@ interface LegendProps {
   showMuIn: boolean;
   showYuIn: boolean;
   activeZonePanel: "50m" | "200m" | null;
+  activeSchoolType: SchoolType | null;
   onToggleRadius50: () => void;
   onToggleRadius200: () => void;
   onToggleTobacco: () => void;
   onToggleMuIn: () => void;
   onToggleYuIn: () => void;
   onOpenZonePanel: (zone: "50m" | "200m") => void;
+  onToggleSchoolType: (type: SchoolType) => void;
 }
 
 interface TooltipProps {
@@ -57,12 +59,14 @@ export default function Legend({
   showMuIn,
   showYuIn,
   activeZonePanel,
+  activeSchoolType,
   onToggleRadius50,
   onToggleRadius200,
   onToggleTobacco,
   onToggleMuIn,
   onToggleYuIn,
   onOpenZonePanel,
+  onToggleSchoolType,
 }: LegendProps) {
   const schoolCounts = schools.reduce<Record<string, number>>((acc, s) => {
     acc[s.type] = (acc[s.type] || 0) + 1;
@@ -95,16 +99,50 @@ export default function Legend({
     <div className="bg-white rounded-xl shadow-lg p-4 space-y-4 min-w-[210px] max-h-[90vh] overflow-y-auto">
       {/* 학교 구분 */}
       <div>
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">학교 구분</p>
-        <ul className="space-y-1.5">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">학교 구분</p>
+          {activeSchoolType && (
+            <button
+              onClick={() => onToggleSchoolType(activeSchoolType)}
+              className="text-[10px] text-slate-400 hover:text-slate-600 underline"
+            >
+              전체 보기
+            </button>
+          )}
+        </div>
+        <ul className="space-y-1">
           {schoolTypes.map(([type, color]) => {
             const count = schoolCounts[type] || 0;
             if (count === 0) return null;
+            const isActive = activeSchoolType === type;
+            const isDimmed = activeSchoolType !== null && !isActive;
             return (
-              <li key={type} className="flex items-center gap-2 text-sm">
-                <span className="inline-block w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-                <span className="text-slate-700">{type}</span>
-                <span className="ml-auto text-slate-400 text-xs font-mono">{count}</span>
+              <li key={type}>
+                <button
+                  onClick={() => onToggleSchoolType(type)}
+                  className={`flex items-center gap-2 text-sm w-full rounded-md px-2 py-1 transition-all text-left
+                    ${isActive
+                      ? "bg-slate-100 ring-1 ring-slate-300 font-semibold"
+                      : isDimmed
+                        ? "opacity-40 hover:opacity-70"
+                        : "hover:bg-slate-50"
+                    }`}
+                >
+                  <span
+                    className="inline-block w-3 h-3 rounded-full flex-shrink-0 transition-all"
+                    style={{
+                      backgroundColor: color,
+                      boxShadow: isActive ? `0 0 0 2px white, 0 0 0 3px ${color}` : "none",
+                    }}
+                  />
+                  <span className={isDimmed ? "text-slate-400" : "text-slate-700"}>{type}</span>
+                  <span className={`ml-auto text-xs font-mono ${isDimmed ? "text-slate-300" : "text-slate-400"}`}>
+                    {count}
+                  </span>
+                  {isActive && (
+                    <span className="text-[10px] font-bold text-slate-500 ml-1">✓</span>
+                  )}
+                </button>
               </li>
             );
           })}
