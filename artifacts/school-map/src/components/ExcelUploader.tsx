@@ -262,18 +262,33 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
               candidates.some((c) => k.trim().toLowerCase().includes(c.toLowerCase()))
             );
 
-          const nameKey  = findKey("학교명", "학교 명", "name", "학교", "이름", "명칭", "학교이름");
-          const latKey   = findKey("위도", "lat", "latitude", "y좌표", "y_좌표", "위도(y)");
-          const lngKey   = findKey("경도", "lng", "lon", "longitude", "x좌표", "x_좌표", "경도(x)");
-          /* 위도·경도가 한 열에 합쳐진 경우 ("위도,경도" / "좌표" / "coordinates") */
-          const coordKey = (!latKey || !lngKey)
-            ? findKey("위도,경도", "경도,위도", "좌표", "coordinates", "coord", "lat,lng", "latlng", "위경도")
-            : undefined;
-          const typeKey  = findKey("구분", "종류", "type", "학교구분", "학교종류", "유형", "학교유형");
-          const distKey  = findKey("구", "district", "지역", "행정구", "자치구");
-          const addrKey  = findKey("주소", "address", "addr", "도로명", "지번", "소재지");
+          const nameKey = findKey("학교명", "학교 명", "name", "학교", "이름", "명칭", "학교이름");
 
-          if (!nameKey || (!latKey && !lngKey && !coordKey)) {
+          /* ── 좌표 열 탐지: 합산 열을 먼저 확인 ──────────────────────────
+           * "위도,경도" 같은 열 이름은 "위도" / "경도" 키워드도 포함하므로
+           * 합산 열을 먼저 잡지 않으면 같은 열이 latKey·lngKey 양쪽에 매핑됨 */
+          const coordKey = findKey(
+            "위도,경도", "경도,위도", "좌표", "coordinates", "coord",
+            "lat,lng", "latlng", "위경도", "latlon", "lat_lng"
+          );
+          /* latKey / lngKey 은 합산 열이 없을 때만 탐색.
+           * 또한, 합산 열과 같은 열 이름이면 분리 열로 사용하지 않음 */
+          const latKey = !coordKey
+            ? findKey("위도", "lat", "latitude", "y좌표", "y_좌표", "위도(y)")
+            : undefined;
+          const lngKey = !coordKey
+            ? findKey("경도", "lng", "lon", "longitude", "x좌표", "x_좌표", "경도(x)")
+            : undefined;
+          /* latKey·lngKey 가 같은 열로 매핑된 경우도 합산 열로 처리 */
+          const effectiveCoordKey = coordKey ?? (latKey && latKey === lngKey ? latKey : undefined);
+          const effectiveLatKey   = effectiveCoordKey ? undefined : latKey;
+          const effectiveLngKey   = effectiveCoordKey ? undefined : lngKey;
+
+          const typeKey = findKey("구분", "종류", "type", "학교구분", "학교종류", "유형", "학교유형");
+          const distKey = findKey("구", "district", "지역", "행정구", "자치구");
+          const addrKey = findKey("주소", "address", "addr", "도로명", "지번", "소재지");
+
+          if (!nameKey || (!effectiveLatKey && !effectiveLngKey && !effectiveCoordKey)) {
             const missing: string[] = [];
             if (!nameKey) missing.push("학교명(이름)");
             if (!latKey && !lngKey && !coordKey) missing.push("위도·경도 (또는 합산 좌표열)");
@@ -288,16 +303,16 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
             if (!name) return null;
 
             let lat: number, lng: number;
-            if (coordKey && row[coordKey]) {
+            if (effectiveCoordKey && row[effectiveCoordKey]) {
               /* 합산 열: "37.5665,126.9780" 형식 — 스케일·순서 자동 교정 */
-              const pair = extractLatLng(String(row[coordKey]));
+              const pair = extractLatLng(String(row[effectiveCoordKey]));
               if (!pair) return null;
               [lat, lng] = pair;
-            } else if (latKey && lngKey) {
+            } else if (effectiveLatKey && effectiveLngKey) {
               /* 분리 열 — 열 순서 반전·스케일 자동 교정 */
               const pair = resolveKoreanCoords(
-                String(row[latKey] || ""),
-                String(row[lngKey] || "")
+                String(row[effectiveLatKey] || ""),
+                String(row[effectiveLngKey] || "")
               );
               if (!pair) return null;
               [lat, lng] = pair;
@@ -314,14 +329,16 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
           }).filter(Boolean) as School[];
 
           if (schools.length === 0) {
-            /* 샘플 값을 보여줘서 원인 파악에 도움 */
             const sampleRow = rows[0];
-            const sampleA = latKey ? String(sampleRow?.[latKey] ?? "") : "";
-            const sampleB = lngKey ? String(sampleRow?.[lngKey] ?? "") : "";
+            const sampleCoord = effectiveCoordKey ? String(sampleRow?.[effectiveCoordKey] ?? "") : "";
+            const sampleA     = effectiveLatKey ? String(sampleRow?.[effectiveLatKey] ?? "") : sampleCoord;
+            const sampleB     = effectiveLngKey ? String(sampleRow?.[effectiveLngKey] ?? "") : "";
             setSchoolError(
               `유효한 행이 없습니다 (전체 ${rows.length}행 처리).\n` +
-              `첫 행 좌표 샘플 — ${latKey ?? "위도"}: "${sampleA}", ${lngKey ?? "경도"}: "${sampleB}"\n` +
-              "좌표가 한국 범위(위도 30~40, 경도 120~135)에 있는지 확인해 주세요."
+              (effectiveCoordKey
+                ? `합산 좌표 열 "${effectiveCoordKey}" 첫 값: "${sampleCoord}"`
+                : `첫 행 좌표 샘플 — ${effectiveLatKey ?? "위도"}: "${sampleA}", ${effectiveLngKey ?? "경도"}: "${sampleB}"`) +
+              "\n좌표가 한국 범위(위도 30~40, 경도 120~135)에 있는지 확인해 주세요."
             );
             return;
           }
@@ -372,13 +389,23 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
               candidates.some((c) => k.trim().toLowerCase().includes(c.toLowerCase()))
             );
 
-          const nameKey     = findKey("업소명", "상호명", "매장명", "name", "이름", "명칭", "상호", "매장");
-          const latKey      = findKey("위도", "lat", "latitude", "y좌표", "y_좌표", "위도(y)");
-          const lngKey      = findKey("경도", "lng", "lon", "longitude", "x좌표", "x_좌표", "경도(x)");
-          /* 위도·경도 합산 열 */
-          const coordKey    = (!latKey || !lngKey)
-            ? findKey("위도,경도", "경도,위도", "좌표", "coordinates", "coord", "lat,lng", "latlng", "위경도")
+          const nameKey = findKey("업소명", "상호명", "매장명", "name", "이름", "명칭", "상호", "매장");
+
+          /* 합산 열 우선 탐지 */
+          const coordKey = findKey(
+            "위도,경도", "경도,위도", "좌표", "coordinates", "coord",
+            "lat,lng", "latlng", "위경도", "latlon", "lat_lng"
+          );
+          const latKey = !coordKey
+            ? findKey("위도", "lat", "latitude", "y좌표", "y_좌표", "위도(y)")
             : undefined;
+          const lngKey = !coordKey
+            ? findKey("경도", "lng", "lon", "longitude", "x좌표", "x_좌표", "경도(x)")
+            : undefined;
+          const effectiveCoordKey = coordKey ?? (latKey && latKey === lngKey ? latKey : undefined);
+          const effectiveLatKey   = effectiveCoordKey ? undefined : latKey;
+          const effectiveLngKey   = effectiveCoordKey ? undefined : lngKey;
+
           const addressKey  = findKey("주소", "address", "addr", "도로명", "지번", "소재지");
           const shopTypeKey = findKey(
             "매장유형", "운영유형", "판매유형", "업소유형", "유형구분",
@@ -386,10 +413,10 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
             "shoptype", "type", "category"
           );
 
-          if (!nameKey || (!latKey && !lngKey && !coordKey)) {
+          if (!nameKey || (!effectiveLatKey && !effectiveLngKey && !effectiveCoordKey)) {
             const missing: string[] = [];
             if (!nameKey) missing.push("업소명(이름)");
-            if (!latKey && !lngKey && !coordKey) missing.push("위도·경도 (또는 합산 좌표열)");
+            if (!effectiveLatKey && !effectiveLngKey && !effectiveCoordKey) missing.push("위도·경도 (또는 합산 좌표열)");
             setTobaccoError(
               `필수 컬럼 없음: ${missing.join(", ")}\n감지된 컬럼: ${detectedHeaders.join(", ") || "(없음)"}`
             );
@@ -401,15 +428,16 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
             if (!name) return null;
 
             let lat: number, lng: number;
-            if (coordKey && row[coordKey]) {
-              const pair = extractLatLng(String(row[coordKey]));
+            if (effectiveCoordKey && row[effectiveCoordKey]) {
+              /* 합산 열: "37.5665,126.9780" 형식 — 스케일·순서 자동 교정 */
+              const pair = extractLatLng(String(row[effectiveCoordKey]));
               if (!pair) return null;
               [lat, lng] = pair;
-            } else if (latKey && lngKey) {
-              /* 열 순서 반전·스케일 자동 교정 */
+            } else if (effectiveLatKey && effectiveLngKey) {
+              /* 분리 열 — 열 순서 반전·스케일 자동 교정 */
               const pair = resolveKoreanCoords(
-                String(row[latKey] || ""),
-                String(row[lngKey] || "")
+                String(row[effectiveLatKey] || ""),
+                String(row[effectiveLngKey] || "")
               );
               if (!pair) return null;
               [lat, lng] = pair;
@@ -425,12 +453,15 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
 
           if (shops.length === 0) {
             const sampleRow = rows[0];
-            const sampleA = latKey ? String(sampleRow?.[latKey] ?? "") : "";
-            const sampleB = lngKey ? String(sampleRow?.[lngKey] ?? "") : "";
+            const sampleCoord = effectiveCoordKey ? String(sampleRow?.[effectiveCoordKey] ?? "") : "";
+            const sampleA     = effectiveLatKey ? String(sampleRow?.[effectiveLatKey] ?? "") : sampleCoord;
+            const sampleB     = effectiveLngKey ? String(sampleRow?.[effectiveLngKey] ?? "") : "";
             setTobaccoError(
               `유효한 행이 없습니다 (전체 ${rows.length}행 처리).\n` +
-              `첫 행 좌표 샘플 — ${latKey ?? "위도"}: "${sampleA}", ${lngKey ?? "경도"}: "${sampleB}"\n` +
-              "좌표가 한국 범위(위도 30~40, 경도 120~135)에 있는지 확인해 주세요."
+              (effectiveCoordKey
+                ? `합산 좌표 열 "${effectiveCoordKey}" 첫 값: "${sampleCoord}"`
+                : `첫 행 좌표 샘플 — ${effectiveLatKey ?? "위도"}: "${sampleA}", ${effectiveLngKey ?? "경도"}: "${sampleB}"`) +
+              "\n좌표가 한국 범위(위도 30~40, 경도 120~135)에 있는지 확인해 주세요."
             );
             return;
           }
