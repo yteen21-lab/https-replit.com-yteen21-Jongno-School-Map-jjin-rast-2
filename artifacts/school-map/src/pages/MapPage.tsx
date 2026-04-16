@@ -536,6 +536,8 @@ export default function MapPage() {
                   <ExcelUploader
                     onSchoolsLoaded={handleSchoolsLoaded}
                     onTobaccoShopsLoaded={handleTobaccoShopsLoaded}
+                    existingSchools={schools}
+                    existingTobacco={tobaccoShops}
                   />
                 </div>
               )}

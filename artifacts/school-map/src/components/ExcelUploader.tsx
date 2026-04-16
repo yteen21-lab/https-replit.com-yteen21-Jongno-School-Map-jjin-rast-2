@@ -6,6 +6,8 @@ import { Upload, FileSpreadsheet, AlertCircle } from "lucide-react";
 interface ExcelUploaderProps {
   onSchoolsLoaded: (schools: School[]) => void;
   onTobaccoShopsLoaded?: (shops: TobaccoShop[]) => void;
+  existingSchools?: School[];
+  existingTobacco?: TobaccoShop[];
 }
 
 type UploadMode = "school" | "tobacco";
@@ -214,7 +216,15 @@ function resolveKoreanCoords(rawA: string, rawB: string): [number, number] | nul
   return null;
 }
 
-export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }: ExcelUploaderProps) {
+/**
+ * 이름 + 좌표(소수점 4자리 ≈ ±11m) 기반 중복 키.
+ * 이름이 같아도 위치가 다르면 다른 데이터로 취급.
+ */
+function dedupKey(name: string, lat: number, lng: number): string {
+  return `${name.trim().toLowerCase()}|${lat.toFixed(4)}|${lng.toFixed(4)}`;
+}
+
+export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, existingSchools = [], existingTobacco = [] }: ExcelUploaderProps) {
   const schoolInputRef = useRef<HTMLInputElement>(null);
   const tobaccoInputRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<UploadMode>("school");
@@ -222,8 +232,8 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
   const [tobaccoError, setTobaccoError] = useState<string | null>(null);
   const [isDraggingSchool, setIsDraggingSchool] = useState(false);
   const [isDraggingTobacco, setIsDraggingTobacco] = useState(false);
-  const [schoolSuccess, setSchoolSuccess] = useState<number | null>(null);
-  const [tobaccoSuccess, setTobaccoSuccess] = useState<{ total: number; muIn: number; yuIn: number } | null>(null);
+  const [schoolSuccess, setSchoolSuccess] = useState<{ added: number; skipped: number } | null>(null);
+  const [tobaccoSuccess, setTobaccoSuccess] = useState<{ total: number; muIn: number; yuIn: number; skipped: number } | null>(null);
   const [shopTypeOverride, setShopTypeOverride] = useState<"auto" | "무인" | "유인">("auto");
 
   const processSchoolFile = useCallback(
@@ -342,8 +352,24 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
             );
             return;
           }
-          setSchoolSuccess(schools.length);
-          onSchoolsLoaded(schools);
+          /* ── 중복 제거 ──────────────────────────────────────────────
+           * 1) 파일 내 중복 (같은 키가 두 번 이상 등장하면 첫 번째만 유지)
+           * 2) 기존 데이터와의 중복 (이미 있는 항목은 건너뜀) */
+          const existingKeys = new Set(existingSchools.map((s) => dedupKey(s.name, s.lat, s.lng)));
+          const fileKeys = new Set<string>();
+          const unique = schools.filter((s) => {
+            const k = dedupKey(s.name, s.lat, s.lng);
+            if (existingKeys.has(k) || fileKeys.has(k)) return false;
+            fileKeys.add(k);
+            return true;
+          });
+          const skipped = schools.length - unique.length;
+          if (unique.length === 0) {
+            setSchoolError(`모든 행(${schools.length}개)이 이미 등록된 데이터와 중복입니다.`);
+            return;
+          }
+          setSchoolSuccess({ added: unique.length, skipped });
+          onSchoolsLoaded(unique);
         } catch (err) {
           setSchoolError(`파일 파싱 오류: ${err instanceof Error ? err.message : String(err)}`);
         }
@@ -465,10 +491,24 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
             );
             return;
           }
-          const muIn = shops.filter(s => s.shopType !== "유인").length;
-          const yuIn = shops.filter(s => s.shopType === "유인").length;
-          setTobaccoSuccess({ total: shops.length, muIn, yuIn });
-          onTobaccoShopsLoaded?.(shops);
+          /* ── 중복 제거 ─────────────────────────────────────────────── */
+          const existingTKeys = new Set(existingTobacco.map((s) => dedupKey(s.name, s.lat, s.lng)));
+          const fileTKeys = new Set<string>();
+          const unique = shops.filter((s) => {
+            const k = dedupKey(s.name, s.lat, s.lng);
+            if (existingTKeys.has(k) || fileTKeys.has(k)) return false;
+            fileTKeys.add(k);
+            return true;
+          });
+          const skipped = shops.length - unique.length;
+          if (unique.length === 0) {
+            setTobaccoError(`모든 행(${shops.length}개)이 이미 등록된 데이터와 중복입니다.`);
+            return;
+          }
+          const muIn = unique.filter(s => s.shopType !== "유인").length;
+          const yuIn = unique.filter(s => s.shopType === "유인").length;
+          setTobaccoSuccess({ total: unique.length, muIn, yuIn, skipped });
+          onTobaccoShopsLoaded?.(unique);
         } catch (err) {
           setTobaccoError(`파일 파싱 오류: ${err instanceof Error ? err.message : String(err)}`);
         }
@@ -528,8 +568,11 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
           </div>
 
           {schoolSuccess !== null && (
-            <div className="bg-green-50 border border-green-200 rounded-lg px-2 py-1.5">
-              <p className="text-[10px] text-green-700 font-semibold">✓ 학교 {schoolSuccess}개 추가됨</p>
+            <div className="bg-green-50 border border-green-200 rounded-lg px-2 py-1.5 space-y-0.5">
+              <p className="text-[10px] text-green-700 font-semibold">✓ 학교 {schoolSuccess.added}개 추가됨</p>
+              {schoolSuccess.skipped > 0 && (
+                <p className="text-[10px] text-slate-500">⚠ 중복 {schoolSuccess.skipped}개 건너뜀</p>
+              )}
             </div>
           )}
           {schoolError && (
@@ -607,6 +650,9 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
             <div className="bg-orange-50 border border-orange-200 rounded-lg px-2 py-1.5 space-y-0.5">
               <p className="text-[10px] text-orange-700 font-semibold">✓ 업소 {tobaccoSuccess.total}개 추가됨</p>
               <p className="text-[10px] text-slate-500">🚬 무인 {tobaccoSuccess.muIn}개 · 🏪 유인 {tobaccoSuccess.yuIn}개</p>
+              {tobaccoSuccess.skipped > 0 && (
+                <p className="text-[10px] text-slate-500">⚠ 중복 {tobaccoSuccess.skipped}개 건너뜀</p>
+              )}
             </div>
           )}
           {tobaccoError && (
