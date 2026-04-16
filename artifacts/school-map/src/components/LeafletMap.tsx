@@ -19,9 +19,43 @@ interface LeafletMapProps {
 
 const SEOUL_CENTER = { lat: 37.5665, lng: 126.9780 };
 const SEOUL_LEVEL = 8;
-const KAKAO_APP_KEY = import.meta.env.VITE_KAKAO_MAP_API_KEY as string;
+const CLUSTER_THRESHOLD_M = 100;
+const SCHOOL_TYPE_PRIORITY = ["초등학교", "중학교", "고등학교", "기타"];
 
 type KakaoLayer = kakao.maps.CustomOverlay | kakao.maps.Circle | kakao.maps.Polygon | kakao.maps.Marker;
+
+function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const φ1 = lat1 * Math.PI / 180, φ2 = lat2 * Math.PI / 180;
+  const Δφ = (lat2 - lat1) * Math.PI / 180;
+  const Δλ = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+  return R * 2 * Math.asin(Math.sqrt(a));
+}
+
+function groupNearbySchools(schools: School[], threshold = CLUSTER_THRESHOLD_M): School[][] {
+  const n = schools.length;
+  const parent = Array.from({ length: n }, (_, i) => i);
+  const find = (i: number): number => {
+    while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; }
+    return i;
+  };
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      if (haversineMeters(schools[i].lat, schools[i].lng, schools[j].lat, schools[j].lng) <= threshold) {
+        const pi = find(i), pj = find(j);
+        if (pi !== pj) parent[pi] = pj;
+      }
+    }
+  }
+  const map = new Map<number, number[]>();
+  for (let i = 0; i < n; i++) {
+    const root = find(i);
+    if (!map.has(root)) map.set(root, []);
+    map.get(root)!.push(i);
+  }
+  return Array.from(map.values()).map(idx => idx.map(i => schools[i]));
+}
 
 let kakaoLoaded = false;
 let kakaoLoadCallbacks: (() => void)[] = [];
@@ -119,59 +153,99 @@ export default function LeafletMap({
     };
   }, []);
 
-  /* ── 학교 마커 & 반경 원 ── */
+  /* ── 학교 마커 & 반경 원 (클러스터링) ── */
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !kakaoLoaded) return;
     clearSchoolLayers();
 
-    schools.forEach((school) => {
-      const color = SCHOOL_TYPE_COLORS[school.type];
-      const isSelected = selectedSchool?.id === school.id;
-      const size = isSelected ? 20 : 14;
-      const pos = new kakao.maps.LatLng(school.lat, school.lng);
+    const groups = groupNearbySchools(schools);
 
+    groups.forEach((group) => {
+      const isGroupSelected = group.some(s => s.id === selectedSchool?.id);
+
+      // 클러스터 중심 (평균 좌표)
+      const centLat = group.reduce((s, sc) => s + sc.lat, 0) / group.length;
+      const centLng = group.reduce((s, sc) => s + sc.lng, 0) / group.length;
+      const pos = new kakao.maps.LatLng(centLat, centLng);
+
+      // 중심에서 가장 먼 학교까지 거리 (m)
+      const maxDist = group.length > 1
+        ? Math.max(...group.map(sc => haversineMeters(sc.lat, sc.lng, centLat, centLng)))
+        : 0;
+
+      // 마커 구성
       const el = document.createElement("div");
       el.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;pointer-events:auto;";
-      el.innerHTML = `
-        <div style="
-          background:white;border:1px solid ${color};border-radius:4px;
-          padding:2px 6px;font-size:11px;font-family:'Noto Sans KR',sans-serif;
-          font-weight:500;color:#1e293b;white-space:nowrap;
+
+      // 각 학교 이름 레이블 (복수 시 모두 표시)
+      const labelsHtml = group.map(sc => {
+        const c = SCHOOL_TYPE_COLORS[sc.type];
+        const isSel = sc.id === selectedSchool?.id;
+        return `<div style="
+          background:white;border:1.5px solid ${c};border-radius:4px;
+          padding:2px 7px;font-size:11px;font-family:'Noto Sans KR',sans-serif;
+          font-weight:${isSel ? 700 : 500};color:#1e293b;white-space:nowrap;
           box-shadow:0 1px 4px rgba(0,0,0,0.15);
-        ">${school.name}</div>
+          ${isSel ? `outline:2px solid ${c};` : ""}
+        " data-school-id="${sc.id}">${sc.name}</div>`;
+      }).join("");
+
+      // 대표 색상: 그룹 내 학교 종류별 우선순위 (초>중>고)
+      const repSchool = group.reduce((best, sc) =>
+        SCHOOL_TYPE_PRIORITY.indexOf(sc.type) < SCHOOL_TYPE_PRIORITY.indexOf(best.type) ? sc : best
+      , group[0]);
+      const repColor = SCHOOL_TYPE_COLORS[repSchool.type];
+      const dotSize = isGroupSelected ? 22 : (group.length > 1 ? 18 : 14);
+
+      el.innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">${labelsHtml}</div>
         <div style="
-          width:${size}px;height:${size}px;
-          background:${color};border:2px solid white;border-radius:50%;
-          box-shadow:0 2px 6px rgba(0,0,0,0.4);
-          flex-shrink:0;
-        "></div>`;
+          width:${dotSize}px;height:${dotSize}px;
+          background:${repColor};border:2.5px solid white;border-radius:50%;
+          box-shadow:0 2px 6px rgba(0,0,0,0.4);flex-shrink:0;
+          display:flex;align-items:center;justify-content:center;
+          font-size:${group.length > 1 ? 9 : 0}px;color:white;font-weight:700;
+          font-family:'Noto Sans KR',sans-serif;
+        ">${group.length > 1 ? group.length : ""}</div>`;
 
       el.addEventListener("click", (e) => {
         e.stopPropagation();
-        onSelectSchool(school);
+        // 클릭 시 그룹 내 첫 번째 학교(또는 이미 선택된 학교 순환) 선택
+        const target = (e.target as HTMLElement).closest("[data-school-id]");
+        if (target) {
+          const id = target.getAttribute("data-school-id");
+          const sc = group.find(s => s.id === id);
+          if (sc) { onSelectSchool(sc); return; }
+        }
+        const next = isGroupSelected
+          ? group[(group.findIndex(s => s.id === selectedSchool?.id) + 1) % group.length]
+          : group[0];
+        onSelectSchool(next);
       });
 
       const overlay = new kakao.maps.CustomOverlay({
         position: pos,
         content: el,
         map,
-        zIndex: isSelected ? 10 : 1,
+        zIndex: isGroupSelected ? 10 : 1,
         xAnchor: 0.5,
         yAnchor: 1,
       });
-
       schoolLayersRef.current.push(overlay);
 
+      // 보호구역 원: 클러스터 전체를 감싸는 반경
       CIRCLE_CONFIGS.forEach((cfg) => {
         const shouldShow =
           (cfg.radius === 50 && showRadius50) ||
           (cfg.radius === 200 && showRadius200);
         if (!shouldShow) return;
 
+        const radius = Math.max(cfg.radius, Math.ceil(maxDist) + cfg.radius);
+
         const circle = new kakao.maps.Circle({
           center: pos,
-          radius: cfg.radius,
+          radius,
           map,
           strokeWeight: cfg.radius === 50 ? 3 : 2,
           strokeColor: cfg.color,
@@ -179,7 +253,6 @@ export default function LeafletMap({
           fillColor: cfg.fillColor,
           fillOpacity: cfg.radius === 50 ? 0.55 : 0.45,
         });
-
         schoolLayersRef.current.push(circle);
       });
     });
