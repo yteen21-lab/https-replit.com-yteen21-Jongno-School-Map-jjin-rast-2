@@ -83,6 +83,54 @@ function detectSchoolType(name: string, typeStr?: string): SchoolType {
   return "기타";
 }
 
+/**
+ * 엑셀 시트를 읽어 헤더 행을 자동 탐지한 뒤 { [컬럼명]: 값 }[] 형태로 반환.
+ * 제목행·빈행이 앞에 있는 한국 정부/공공 데이터 양식도 처리.
+ */
+function sheetToRows(sheet: XLSX.WorkSheet): { rows: Record<string, string>[]; detectedHeaders: string[] } {
+  // 1) 원시 2D 배열로 읽기
+  const raw: string[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" }) as string[][];
+  if (raw.length === 0) return { rows: [], detectedHeaders: [] };
+
+  // 2) 헤더 행 탐지: 최소 2개 이상의 비어있지 않은 셀이 있는 첫 행
+  //    그 중에서도 알려진 키워드가 가장 많이 포함된 행을 우선
+  const HEADER_KEYWORDS = [
+    "학교명", "업소명", "상호명", "매장명", "이름", "명칭",
+    "위도", "경도", "lat", "lng", "latitude", "longitude",
+    "주소", "address", "구", "district",
+    "구분", "유형", "종류", "type",
+  ];
+
+  let bestRow = 0;
+  let bestScore = -1;
+  for (let i = 0; i < Math.min(raw.length, 15); i++) {
+    const nonEmpty = raw[i].filter((c) => String(c).trim() !== "").length;
+    if (nonEmpty < 2) continue;
+    const rowText = raw[i].map((c) => String(c).trim().toLowerCase()).join(" ");
+    const score = HEADER_KEYWORDS.filter((k) => rowText.includes(k.toLowerCase())).length;
+    if (score > bestScore) { bestScore = score; bestRow = i; }
+  }
+
+  const headers = raw[bestRow].map((c) => String(c).trim());
+
+  // 3) 헤더 이후 행들을 객체 배열로 변환
+  const rows: Record<string, string>[] = [];
+  for (let i = bestRow + 1; i < raw.length; i++) {
+    const row = raw[i];
+    const obj: Record<string, string> = {};
+    let hasValue = false;
+    headers.forEach((h, idx) => {
+      if (!h) return;
+      const cell = String(row[idx] ?? "").trim();
+      obj[h] = cell;
+      if (cell) hasValue = true;
+    });
+    if (hasValue) rows.push(obj);
+  }
+
+  return { rows, detectedHeaders: headers.filter(Boolean) };
+}
+
 export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }: ExcelUploaderProps) {
   const schoolInputRef = useRef<HTMLInputElement>(null);
   const tobaccoInputRef = useRef<HTMLInputElement>(null);
@@ -103,45 +151,53 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
       reader.onload = (e) => {
         try {
           const data = new Uint8Array(e.target?.result as ArrayBuffer);
-          const workbook = XLSX.read(data, { type: "array" });
+          const workbook = XLSX.read(data, { type: "array", codepage: 65001 });
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
-          const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+          const { rows, detectedHeaders } = sheetToRows(sheet);
 
-          if (rows.length === 0) { setSchoolError("파일이 비어 있습니다."); return; }
+          if (rows.length === 0) {
+            setSchoolError("데이터를 찾을 수 없습니다.\n헤더 행과 데이터가 있는지 확인해 주세요.");
+            return;
+          }
 
-          const firstRow = rows[0];
           const findKey = (...candidates: string[]) =>
-            Object.keys(firstRow).find((k) =>
-              candidates.some((c) => k.trim().toLowerCase().includes(c))
+            detectedHeaders.find((k) =>
+              candidates.some((c) => k.trim().toLowerCase().includes(c.toLowerCase()))
             );
 
-          const nameKey = findKey("학교명", "name", "학교", "이름", "명칭");
-          const latKey  = findKey("위도", "lat", "latitude", "y");
-          const lngKey  = findKey("경도", "lng", "lon", "longitude", "x");
-          const typeKey = findKey("구분", "종류", "type", "학교구분", "학교종류", "유형");
-          const distKey = findKey("구", "district", "지역", "행정구");
+          const nameKey = findKey("학교명", "학교 명", "name", "학교", "이름", "명칭", "학교이름");
+          const latKey  = findKey("위도", "lat", "latitude", "y좌표", "y_좌표", "위도(y)");
+          const lngKey  = findKey("경도", "lng", "lon", "longitude", "x좌표", "x_좌표", "경도(x)");
+          const typeKey = findKey("구분", "종류", "type", "학교구분", "학교종류", "유형", "학교유형");
+          const distKey = findKey("구", "district", "지역", "행정구", "자치구");
+          const addrKey = findKey("주소", "address", "addr", "도로명", "지번", "소재지");
 
           if (!nameKey || !latKey || !lngKey) {
-            setSchoolError(`필수 컬럼 없음\n필요: 학교명, 위도, 경도\n현재: ${Object.keys(firstRow).join(", ")}`);
+            const missing = [!nameKey && "학교명", !latKey && "위도", !lngKey && "경도"].filter(Boolean).join(", ");
+            setSchoolError(`필수 컬럼 없음: ${missing}\n감지된 컬럼: ${detectedHeaders.join(", ")}`);
             return;
           }
 
           const schools: School[] = rows.map((row, i) => {
-            const name = String(row[nameKey!] || "").trim();
-            const lat  = parseFloat(String(row[latKey!] || ""));
-            const lng  = parseFloat(String(row[lngKey!] || ""));
+            const name = String(row[nameKey] || "").trim();
+            const lat  = parseFloat(String(row[latKey] || "").replace(/,/g, ""));
+            const lng  = parseFloat(String(row[lngKey] || "").replace(/,/g, ""));
             const typeStr = typeKey ? String(row[typeKey] || "") : "";
-            const district = distKey ? String(row[distKey] || "").trim() || undefined : undefined;
+            const district = distKey ? String(row[distKey] || "").trim() || undefined
+              : addrKey ? String(row[addrKey] || "").match(/([가-힣]+구)/)?.[1] : undefined;
             if (!name || isNaN(lat) || isNaN(lng)) return null;
             if (lat < 30 || lat > 40 || lng < 120 || lng > 135) return null;
             return { id: `excel-s${Date.now()}-${i}`, name, lat, lng, type: detectSchoolType(name, typeStr), district } as School;
           }).filter(Boolean) as School[];
 
-          if (schools.length === 0) { setSchoolError("유효한 데이터가 없습니다. 위도/경도를 확인해 주세요."); return; }
+          if (schools.length === 0) {
+            setSchoolError("유효한 행이 없습니다.\n위도(30~40)·경도(120~135) 범위를 확인해 주세요.");
+            return;
+          }
           setSchoolSuccess(schools.length);
           onSchoolsLoaded(schools);
-        } catch {
-          setSchoolError("파일 파싱 중 오류가 발생했습니다.");
+        } catch (err) {
+          setSchoolError(`파일 파싱 오류: ${err instanceof Error ? err.message : String(err)}`);
         }
       };
       reader.readAsArrayBuffer(file);
@@ -157,22 +213,24 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
       reader.onload = (e) => {
         try {
           const data = new Uint8Array(e.target?.result as ArrayBuffer);
-          const workbook = XLSX.read(data, { type: "array" });
+          const workbook = XLSX.read(data, { type: "array", codepage: 65001 });
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
-          const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+          const { rows, detectedHeaders } = sheetToRows(sheet);
 
-          if (rows.length === 0) { setTobaccoError("파일이 비어 있습니다."); return; }
+          if (rows.length === 0) {
+            setTobaccoError("데이터를 찾을 수 없습니다.\n헤더 행과 데이터가 있는지 확인해 주세요.");
+            return;
+          }
 
-          const firstRow = rows[0];
           const findKey = (...candidates: string[]) =>
-            Object.keys(firstRow).find((k) =>
-              candidates.some((c) => k.trim().toLowerCase().includes(c))
+            detectedHeaders.find((k) =>
+              candidates.some((c) => k.trim().toLowerCase().includes(c.toLowerCase()))
             );
 
           const nameKey     = findKey("업소명", "상호명", "매장명", "name", "이름", "명칭", "상호", "매장");
-          const latKey      = findKey("위도", "lat", "latitude", "y");
-          const lngKey      = findKey("경도", "lng", "lon", "longitude", "x");
-          const addressKey  = findKey("주소", "address", "addr", "도로명", "지번");
+          const latKey      = findKey("위도", "lat", "latitude", "y좌표", "y_좌표", "위도(y)");
+          const lngKey      = findKey("경도", "lng", "lon", "longitude", "x좌표", "x_좌표", "경도(x)");
+          const addressKey  = findKey("주소", "address", "addr", "도로명", "지번", "소재지");
           const shopTypeKey = findKey(
             "매장유형", "운영유형", "판매유형", "업소유형", "유형구분",
             "유형", "판매방식", "종류", "구분", "형태",
@@ -180,14 +238,15 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
           );
 
           if (!nameKey || !latKey || !lngKey) {
-            setTobaccoError(`필수 컬럼 없음\n필요: 업소명, 위도, 경도\n현재: ${Object.keys(firstRow).join(", ")}`);
+            const missing = [!nameKey && "업소명", !latKey && "위도", !lngKey && "경도"].filter(Boolean).join(", ");
+            setTobaccoError(`필수 컬럼 없음: ${missing}\n감지된 컬럼: ${detectedHeaders.join(", ")}`);
             return;
           }
 
           const shops: TobaccoShop[] = rows.map((row, i) => {
-            const name    = String(row[nameKey!] || "").trim();
-            const lat     = parseFloat(String(row[latKey!] || ""));
-            const lng     = parseFloat(String(row[lngKey!] || ""));
+            const name    = String(row[nameKey] || "").trim();
+            const lat     = parseFloat(String(row[latKey] || "").replace(/,/g, ""));
+            const lng     = parseFloat(String(row[lngKey] || "").replace(/,/g, ""));
             const address = addressKey ? String(row[addressKey] || "").trim() || undefined : undefined;
             const rawType = shopTypeKey ? String(row[shopTypeKey] || "").trim() : "";
             const shopType = shopTypeOverride !== "auto" ? shopTypeOverride : autoDetectShopType(name, rawType);
@@ -196,13 +255,16 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
             return { id: `excel-t${Date.now()}-${i}`, name, lat, lng, address, shopType } as TobaccoShop;
           }).filter(Boolean) as TobaccoShop[];
 
-          if (shops.length === 0) { setTobaccoError("유효한 데이터가 없습니다. 위도/경도를 확인해 주세요."); return; }
+          if (shops.length === 0) {
+            setTobaccoError("유효한 행이 없습니다.\n위도(30~40)·경도(120~135) 범위를 확인해 주세요.");
+            return;
+          }
           const muIn = shops.filter(s => s.shopType !== "유인").length;
           const yuIn = shops.filter(s => s.shopType === "유인").length;
           setTobaccoSuccess({ total: shops.length, muIn, yuIn });
           onTobaccoShopsLoaded?.(shops);
-        } catch {
-          setTobaccoError("파일 파싱 중 오류가 발생했습니다.");
+        } catch (err) {
+          setTobaccoError(`파일 파싱 오류: ${err instanceof Error ? err.message : String(err)}`);
         }
       };
       reader.readAsArrayBuffer(file);
