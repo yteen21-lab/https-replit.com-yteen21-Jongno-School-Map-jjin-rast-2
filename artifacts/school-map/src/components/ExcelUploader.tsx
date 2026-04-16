@@ -70,18 +70,61 @@ const SCHOOL_TYPE_MAP: Record<string, SchoolType> = {
   elementary: "초등학교",
   middle: "중학교",
   high: "고등학교",
+  secondary: "중학교",
+  "high school": "고등학교",
 };
 
-function detectSchoolType(name: string, typeStr?: string): SchoolType {
+/**
+ * 학교 구분 자동 판별.
+ * 우선순위: 유형 컬럼 명시값 → 학교명·주소의 정식 표기 → 약칭·어미 패턴
+ *
+ * @param name    학교명
+ * @param typeStr 유형 컬럼값 (있으면 최우선)
+ * @param address 주소 (학교명에 유형 표기가 없을 때 보조)
+ */
+function detectSchoolType(name: string, typeStr?: string, address?: string): SchoolType {
+  /* ── 1. 유형 컬럼이 있으면 최우선 적용 ────────────────────────── */
   if (typeStr) {
-    const normalized = typeStr.trim().toLowerCase();
+    const t = typeStr.trim().toLowerCase();
+    /* 각종학교(초), 각종학교(중), 각종학교(고) 처리 */
+    if (/각종.{0,4}초/.test(t) || t.includes("초등"))        return "초등학교";
+    if (/각종.{0,4}중/.test(t) || t.includes("중학"))        return "중학교";
+    if (/각종.{0,4}고/.test(t) || t.includes("고등"))        return "고등학교";
+    if (t.includes("특수") || t.includes("대안") || t.includes("유치")) return "기타";
+    /* MAP 룩업 (부분 문자열 매칭) */
     for (const [key, val] of Object.entries(SCHOOL_TYPE_MAP)) {
-      if (normalized.includes(key)) return val;
+      if (t.includes(key.toLowerCase())) return val;
     }
   }
-  if (name.includes("초등") || name.includes("초교")) return "초등학교";
-  if (name.includes("중학") || name.endsWith("중")) return "중학교";
-  if (name.includes("고등") || name.endsWith("고") || name.includes("고교")) return "고등학교";
+
+  /* ── 2. 학교명 + 주소를 합쳐서 정식 표기 검색 ─────────────────── */
+  const combined = `${name} ${address ?? ""}`;
+
+  /* 정식 표기: 이 단어들이 있으면 100% 확정 */
+  if (combined.includes("초등학교")) return "초등학교";
+  if (combined.includes("중학교"))   return "중학교";
+  if (combined.includes("고등학교")) return "고등학교";
+
+  /* 명백한 기타: 특수·대안·유치원·국제학교 */
+  if (
+    combined.includes("특수학교") ||
+    combined.includes("대안학교") ||
+    combined.includes("유치원")   ||
+    combined.includes("국제학교")
+  ) return "기타";
+
+  /* ── 3. 약칭·어미 패턴 (이름만 대상) ─────────────────────────── */
+  const n = name.trim();
+
+  /* 초등: "OO초", "OO초교", "OO초등" */
+  if (/초$/.test(n) || n.includes("초교") || n.includes("초등")) return "초등학교";
+
+  /* 중학: "OO중", "OO여중", "사범부속중" 등 */
+  if (/중$/.test(n) || n.includes("중학")) return "중학교";
+
+  /* 고등: "OO고", "OO여고", "특성화고", "과학고", "예술고" 등 */
+  if (/고$/.test(n) || n.includes("고등") || n.includes("고교")) return "고등학교";
+
   return "기타";
 }
 
@@ -330,12 +373,18 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
               return null;
             }
 
-            const typeStr  = typeKey ? String(row[typeKey] || "") : "";
+            const typeStr = typeKey ? String(row[typeKey] || "") : "";
+            const addrStr = addrKey ? String(row[addrKey] || "").trim() : "";
             const district = distKey
               ? String(row[distKey] || "").trim() || undefined
-              : addrKey ? String(row[addrKey] || "").match(/([가-힣]+구)/)?.[1] : undefined;
+              : addrStr ? addrStr.match(/([가-힣]+구)/)?.[1] : undefined;
 
-            return { id: `excel-s${Date.now()}-${i}`, name, lat, lng, type: detectSchoolType(name, typeStr), district } as School;
+            return {
+              id: `excel-s${Date.now()}-${i}`,
+              name, lat, lng,
+              type: detectSchoolType(name, typeStr, addrStr),
+              district,
+            } as School;
           }).filter(Boolean) as School[];
 
           if (schools.length === 0) {
