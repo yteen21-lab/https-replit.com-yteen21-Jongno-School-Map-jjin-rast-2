@@ -1,9 +1,11 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import LeafletMap from "@/components/LeafletMap";
 import ExcelUploader from "@/components/ExcelUploader";
-import SchoolList, { highlight } from "@/components/SchoolList";
+import SchoolList from "@/components/SchoolList";
+import { highlight } from "@/utils/highlight";
 import Legend from "@/components/Legend";
 import ZoneShopPanel from "@/components/ZoneShopPanel";
+import EditPanel from "@/components/EditPanel";
 import {
   School, TobaccoShop, SchoolType,
   SAMPLE_SCHOOLS, SAMPLE_TOBACCO_SHOPS,
@@ -11,7 +13,7 @@ import {
   SCHOOL_TYPE_COLORS, TOBACCO_ZONE_COLORS,
   computeDistrictPolygon,
 } from "@/types/school";
-import { RefreshCw, School as SchoolIcon, ChevronLeft, ChevronRight, Search, X, Link2, Check, CloudUpload, Cloud } from "lucide-react";
+import { RefreshCw, School as SchoolIcon, ChevronLeft, ChevronRight, Search, X, Link2, Check, CloudUpload, Cloud, Pencil } from "lucide-react";
 import ymcaLogo from "@assets/ymca로고_1776149746053.jpg";
 import kctcreLogo from "@assets/image_1776150010933.png";
 import DistrictMiniMap from "@/components/DistrictMiniMap";
@@ -181,6 +183,11 @@ export default function MapPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [copyDone, setCopyDone] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [editTarget, setEditTarget] = useState<
+    | { kind: "school"; item: School }
+    | { kind: "tobacco"; item: TobaccoShop }
+    | null
+  >(null);
   const isResizing = useRef(false);
   /* 최신 상태를 handleSave에서 안전하게 읽기 위한 ref */
   const schoolsRef = useRef(schools);
@@ -286,6 +293,51 @@ export default function MapPage() {
     setSelectedSchool(null);
     setSearchQuery("");
     setSavedAt(null);
+  }, []);
+
+  /* 수정 패널 열기 */
+  const handleEditSchool = useCallback((school: School) => {
+    setEditTarget({ kind: "school", item: school });
+  }, []);
+
+  const handleEditTobaccoShop = useCallback((shop: TobaccoShop) => {
+    setEditTarget({ kind: "tobacco", item: shop });
+  }, []);
+
+  /* 수정 저장 */
+  const handleSaveSchool = useCallback((updated: School) => {
+    setSchools((prev) => {
+      const next = prev.map((s) => s.id === updated.id ? updated : s);
+      saveToStorage(STORAGE_KEY_SCHOOLS, next);
+      return next;
+    });
+    setSelectedSchool((prev) => prev?.id === updated.id ? updated : prev);
+  }, []);
+
+  const handleSaveTobacco = useCallback((updated: TobaccoShop) => {
+    setTobaccoShops((prev) => {
+      const next = prev.map((s) => s.id === updated.id ? updated : s);
+      saveToStorage(STORAGE_KEY_TOBACCO, next);
+      return next;
+    });
+  }, []);
+
+  /* 삭제 */
+  const handleDeleteSchool = useCallback((id: string) => {
+    setSchools((prev) => {
+      const next = prev.filter((s) => s.id !== id);
+      saveToStorage(STORAGE_KEY_SCHOOLS, next);
+      return next;
+    });
+    setSelectedSchool((prev) => prev?.id === id ? null : prev);
+  }, []);
+
+  const handleDeleteTobacco = useCallback((id: string) => {
+    setTobaccoShops((prev) => {
+      const next = prev.filter((s) => s.id !== id);
+      saveToStorage(STORAGE_KEY_TOBACCO, next);
+      return next;
+    });
   }, []);
 
   const handleSave = useCallback(() => {
@@ -422,6 +474,7 @@ export default function MapPage() {
                     schools={filteredSchools}
                     selectedSchool={selectedSchool}
                     onSelectSchool={handleSelectSchool}
+                    onEditSchool={handleEditSchool}
                     query={searchQuery}
                   />
 
@@ -437,10 +490,10 @@ export default function MapPage() {
                           const isSelected = selectedTobaccoShop?.id === shop.id;
                           const isYuIn = shop.shopType === "유인";
                           return (
-                            <li key={shop.id}>
+                            <li key={shop.id} className="group relative">
                               <button
                                 onClick={() => handleSelectTobaccoShop(shop)}
-                                className={`w-full text-left px-3 py-2 rounded-md text-sm transition-all ${
+                                className={`w-full text-left px-3 py-2 pr-8 rounded-md text-sm transition-all ${
                                   isSelected
                                     ? "bg-orange-50 border border-orange-300 text-orange-800 font-medium"
                                     : "hover:bg-slate-50 text-slate-700 border border-transparent"
@@ -460,6 +513,15 @@ export default function MapPage() {
                                     {highlight(shop.address, searchQuery)}
                                   </span>
                                 )}
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleEditTobaccoShop(shop); }}
+                                title="수정"
+                                className="absolute right-1.5 top-1/2 -translate-y-1/2
+                                  opacity-0 group-hover:opacity-100 transition-opacity
+                                  p-1 rounded hover:bg-slate-200 text-slate-400 hover:text-slate-600"
+                              >
+                                <Pencil className="w-3 h-3" />
                               </button>
                             </li>
                           );
@@ -688,6 +750,16 @@ export default function MapPage() {
           />
         )}
       </main>
+
+      {/* 수정/삭제 모달 */}
+      <EditPanel
+        target={editTarget}
+        onClose={() => setEditTarget(null)}
+        onSaveSchool={handleSaveSchool}
+        onSaveTobacco={handleSaveTobacco}
+        onDeleteSchool={handleDeleteSchool}
+        onDeleteTobacco={handleDeleteTobacco}
+      />
     </div>
   );
 }

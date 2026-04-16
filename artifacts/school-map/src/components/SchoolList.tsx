@@ -1,27 +1,16 @@
 import { School, SCHOOL_TYPE_COLORS } from "@/types/school";
-import { MapPin } from "lucide-react";
+import { MapPin, Pencil } from "lucide-react";
+import { highlight } from "@/utils/highlight";
 
 interface SchoolListProps {
   schools: School[];
   selectedSchool: School | null;
   onSelectSchool: (school: School) => void;
+  onEditSchool?: (school: School) => void;
   query?: string;
 }
 
-export function highlight(text: string, query: string) {
-  if (!query) return <>{text}</>;
-  const idx = text.toLowerCase().indexOf(query.toLowerCase());
-  if (idx === -1) return <>{text}</>;
-  return (
-    <>
-      {text.slice(0, idx)}
-      <mark className="bg-yellow-200 text-yellow-900 rounded-sm px-0.5">{text.slice(idx, idx + query.length)}</mark>
-      {text.slice(idx + query.length)}
-    </>
-  );
-}
-
-export default function SchoolList({ schools, selectedSchool, onSelectSchool, query = "" }: SchoolListProps) {
+export default function SchoolList({ schools, selectedSchool, onSelectSchool, onEditSchool, query = "" }: SchoolListProps) {
   if (schools.length === 0) {
     return (
       <div className="text-center py-6 text-slate-400 text-sm">
@@ -56,11 +45,11 @@ export default function SchoolList({ schools, selectedSchool, onSelectSchool, qu
               {list.map((school) => {
                 const isSelected = selectedSchool?.id === school.id;
                 return (
-                  <li key={school.id}>
+                  <li key={school.id} className="group relative">
                     <button
                       onClick={() => onSelectSchool(school)}
                       className={`
-                        w-full text-left px-3 py-2 rounded-md text-sm transition-all
+                        w-full text-left px-3 py-2 pr-8 rounded-md text-sm transition-all
                         ${isSelected
                           ? "bg-blue-50 border border-blue-200 text-blue-800 font-medium"
                           : "hover:bg-slate-50 text-slate-700 border border-transparent"
@@ -77,6 +66,17 @@ export default function SchoolList({ schools, selectedSchool, onSelectSchool, qu
                         </span>
                       )}
                     </button>
+                    {onEditSchool && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onEditSchool(school); }}
+                        title="수정"
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2
+                          opacity-0 group-hover:opacity-100 transition-opacity
+                          p-1 rounded hover:bg-slate-200 text-slate-400 hover:text-slate-600"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                    )}
                   </li>
                 );
               })}
