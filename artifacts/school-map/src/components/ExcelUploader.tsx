@@ -340,6 +340,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
           const typeKey = findKey("구분", "종류", "type", "학교구분", "학교종류", "유형", "학교유형");
           const distKey = findKey("구", "district", "지역", "행정구", "자치구");
           const addrKey = findKey("주소", "address", "addr", "도로명", "지번", "소재지");
+          const propRadKey = findKey("부지반경", "부지 반경", "부지", "propertyRadius", "property_radius", "반경", "교지반경");
 
           if (!nameKey || (!effectiveLatKey && !effectiveLngKey && !effectiveCoordKey)) {
             const missing: string[] = [];
@@ -379,11 +380,15 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
               ? String(row[distKey] || "").trim() || undefined
               : addrStr ? addrStr.match(/([가-힣]+구)/)?.[1] : undefined;
 
+            const prRaw = propRadKey ? parseFloat(String(row[propRadKey] || "")) : NaN;
+            const propertyRadius = !isNaN(prRaw) && prRaw > 0 ? prRaw : undefined;
+
             return {
               id: `excel-s${Date.now()}-${i}`,
               name, lat, lng,
               type: detectSchoolType(name, typeStr, addrStr),
               district,
+              propertyRadius,
             } as School;
           }).filter(Boolean) as School[];
 

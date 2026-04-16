@@ -31,6 +31,7 @@ export default function EditPanel({
   const [schoolName, setSchoolName] = useState("");
   const [schoolType, setSchoolType] = useState<SchoolType>("초등학교");
   const [schoolDistrict, setSchoolDistrict] = useState("");
+  const [propertyRadius, setPropertyRadius] = useState<string>("");
 
   /* 담배샵 편집 상태 */
   const [shopName, setShopName] = useState("");
@@ -45,9 +46,10 @@ export default function EditPanel({
       setSchoolName(target.item.name);
       setSchoolType(target.item.type);
       setSchoolDistrict(target.item.district ?? "");
+      setPropertyRadius(target.item.propertyRadius != null ? String(target.item.propertyRadius) : "");
     } else {
       setShopName(target.item.name);
-      setShopType(target.item.shopType);
+      setShopType(target.item.shopType ?? "무인");
       setShopAddress(target.item.address ?? "");
     }
   }, [target]);
@@ -59,13 +61,16 @@ export default function EditPanel({
   const accentClass = isSchool ? "bg-blue-600" : "bg-orange-500";
 
   function handleSave() {
+    if (!target) return;
     if (isSchool) {
       if (!schoolName.trim()) return;
+      const pr = parseFloat(propertyRadius);
       onSaveSchool({
         ...(target.item as School),
         name: schoolName.trim(),
         type: schoolType,
         district: schoolDistrict.trim() || undefined,
+        propertyRadius: !isNaN(pr) && pr > 0 ? pr : undefined,
       });
     } else {
       if (!shopName.trim()) return;
@@ -80,6 +85,7 @@ export default function EditPanel({
   }
 
   function handleDelete() {
+    if (!target) return;
     if (!confirmDelete) { setConfirmDelete(true); return; }
     if (isSchool) onDeleteSchool(target.item.id);
     else onDeleteTobacco(target.item.id);
@@ -144,6 +150,24 @@ export default function EditPanel({
                   onChange={(e) => setSchoolDistrict(e.target.value)}
                   placeholder="예: 종로구"
                 />
+              </Field>
+
+              <Field label="부지 반경 (m, 선택)">
+                <div className="relative">
+                  <input
+                    type="number"
+                    min={0}
+                    step={5}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 text-slate-800"
+                    value={propertyRadius}
+                    onChange={(e) => setPropertyRadius(e.target.value)}
+                    placeholder="예: 80"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">m</span>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-0.5">
+                  학교 중심→부지 끝 거리. 보호구역은 부지 끝에서 50m/200m 적용됩니다.
+                </p>
               </Field>
             </>
           ) : (

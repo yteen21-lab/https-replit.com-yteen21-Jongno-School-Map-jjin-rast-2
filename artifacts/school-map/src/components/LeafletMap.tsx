@@ -169,10 +169,12 @@ export default function LeafletMap({
       const centLng = group.reduce((s, sc) => s + sc.lng, 0) / group.length;
       const pos = new kakao.maps.LatLng(centLat, centLng);
 
-      // 중심에서 가장 먼 학교까지 거리 (m)
-      const maxDist = group.length > 1
-        ? Math.max(...group.map(sc => haversineMeters(sc.lat, sc.lng, centLat, centLng)))
-        : 0;
+      // 중심에서 가장 먼 학교까지 거리 (m) + 각 학교 부지 반경 반영
+      const maxReach = group.length > 1
+        ? Math.max(...group.map(sc =>
+            haversineMeters(sc.lat, sc.lng, centLat, centLng) + (sc.propertyRadius ?? 0)
+          ))
+        : (group[0].propertyRadius ?? 0);
 
       // 마커 구성
       const el = document.createElement("div");
@@ -241,7 +243,8 @@ export default function LeafletMap({
           (cfg.radius === 200 && showRadius200);
         if (!shouldShow) return;
 
-        const radius = Math.max(cfg.radius, Math.ceil(maxDist) + cfg.radius);
+        // 부지 끝에서 보호구역 거리 = 중심에서 (부지반경 + 보호구역거리)
+        const radius = Math.ceil(maxReach) + cfg.radius;
 
         const circle = new kakao.maps.Circle({
           center: pos,

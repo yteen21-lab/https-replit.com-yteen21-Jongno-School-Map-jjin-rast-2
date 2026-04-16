@@ -8,6 +8,7 @@ export interface School {
   lat: number;
   lng: number;
   district?: string;
+  propertyRadius?: number; // 학교 부지 반경 (m) — 보호구역은 부지 끝에서 측정
 }
 
 export interface TobaccoShop {
@@ -109,7 +110,11 @@ export function haversineDistance(lat1: number, lng1: number, lat2: number, lng2
 }
 
 export function getTobaccoZone(shop: TobaccoShop, schools: School[]): TobaccoZone {
-  const minDist = Math.min(...schools.map((s) => haversineDistance(shop.lat, shop.lng, s.lat, s.lng)));
+  // 부지 경계까지의 거리 = 중심까지 거리 - 부지 반경 (최소 0)
+  const minDist = Math.min(...schools.map((s) => {
+    const d = haversineDistance(shop.lat, shop.lng, s.lat, s.lng);
+    return Math.max(0, d - (s.propertyRadius ?? 0));
+  }));
   if (minDist <= 50)  return "50m이내";
   if (minDist <= 200) return "200m이내";
   return "외부";
