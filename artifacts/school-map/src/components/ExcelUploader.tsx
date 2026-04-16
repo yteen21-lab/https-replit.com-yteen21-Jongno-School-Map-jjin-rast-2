@@ -192,6 +192,28 @@ function extractLatLng(value: string): [number, number] | null {
   return null;
 }
 
+/**
+ * 분리된 두 좌표 값에서 한국 위도/경도 쌍을 추출.
+ * - 열이 반대로 매핑된 경우(경도↔위도) 자동 교정
+ * - 값이 배수(×100, ×10000, ×100000, ×1000000)로 스케일된 경우 자동 나눗셈
+ */
+function resolveKoreanCoords(rawA: string, rawB: string): [number, number] | null {
+  const a0 = parseFloat(rawA.replace(/[, ]/g, ""));
+  const b0 = parseFloat(rawB.replace(/[, ]/g, ""));
+  if (isNaN(a0) || isNaN(b0)) return null;
+
+  /* 스케일 후보: 1, 1/100, 1/10000, 1/100000, 1/1000000 */
+  const scales = [1, 0.01, 0.0001, 0.00001, 0.000001];
+  for (const sa of scales) {
+    for (const sb of scales) {
+      const a = a0 * sa, b = b0 * sb;
+      if (a >= 30 && a <= 40 && b >= 120 && b <= 135) return [a, b];
+      if (b >= 30 && b <= 40 && a >= 120 && a <= 135) return [b, a];
+    }
+  }
+  return null;
+}
+
 export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }: ExcelUploaderProps) {
   const schoolInputRef = useRef<HTMLInputElement>(null);
   const tobaccoInputRef = useRef<HTMLInputElement>(null);
@@ -263,16 +285,24 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
 
           const schools: School[] = rows.map((row, i) => {
             const name = String(row[nameKey!] || "").trim();
+            if (!name) return null;
 
             let lat: number, lng: number;
             if (coordKey && row[coordKey]) {
-              /* 합산 열: "37.5665,126.9780" 형식 자동 분리 */
+              /* 합산 열: "37.5665,126.9780" 형식 — 스케일·순서 자동 교정 */
               const pair = extractLatLng(String(row[coordKey]));
               if (!pair) return null;
               [lat, lng] = pair;
+            } else if (latKey && lngKey) {
+              /* 분리 열 — 열 순서 반전·스케일 자동 교정 */
+              const pair = resolveKoreanCoords(
+                String(row[latKey] || ""),
+                String(row[lngKey] || "")
+              );
+              if (!pair) return null;
+              [lat, lng] = pair;
             } else {
-              lat = parseFloat(String(row[latKey!] || "").replace(/[, ]/g, ""));
-              lng = parseFloat(String(row[lngKey!] || "").replace(/[, ]/g, ""));
+              return null;
             }
 
             const typeStr  = typeKey ? String(row[typeKey] || "") : "";
@@ -280,16 +310,18 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
               ? String(row[distKey] || "").trim() || undefined
               : addrKey ? String(row[addrKey] || "").match(/([가-힣]+구)/)?.[1] : undefined;
 
-            if (!name || isNaN(lat) || isNaN(lng)) return null;
-            if (lat < 30 || lat > 40 || lng < 120 || lng > 135) return null;
             return { id: `excel-s${Date.now()}-${i}`, name, lat, lng, type: detectSchoolType(name, typeStr), district } as School;
           }).filter(Boolean) as School[];
 
           if (schools.length === 0) {
+            /* 샘플 값을 보여줘서 원인 파악에 도움 */
+            const sampleRow = rows[0];
+            const sampleA = latKey ? String(sampleRow?.[latKey] ?? "") : "";
+            const sampleB = lngKey ? String(sampleRow?.[lngKey] ?? "") : "";
             setSchoolError(
               `유효한 행이 없습니다 (전체 ${rows.length}행 처리).\n` +
-              "• 위도 범위: 30 ~ 40\n• 경도 범위: 120 ~ 135\n" +
-              (coordKey ? `• 좌표 열 "${coordKey}" 에서 숫자 쌍을 추출 시도함` : "")
+              `첫 행 좌표 샘플 — ${latKey ?? "위도"}: "${sampleA}", ${lngKey ?? "경도"}: "${sampleB}"\n` +
+              "좌표가 한국 범위(위도 30~40, 경도 120~135)에 있는지 확인해 주세요."
             );
             return;
           }
@@ -366,29 +398,39 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded }:
 
           const shops: TobaccoShop[] = rows.map((row, i) => {
             const name = String(row[nameKey!] || "").trim();
+            if (!name) return null;
 
             let lat: number, lng: number;
             if (coordKey && row[coordKey]) {
               const pair = extractLatLng(String(row[coordKey]));
               if (!pair) return null;
               [lat, lng] = pair;
+            } else if (latKey && lngKey) {
+              /* 열 순서 반전·스케일 자동 교정 */
+              const pair = resolveKoreanCoords(
+                String(row[latKey] || ""),
+                String(row[lngKey] || "")
+              );
+              if (!pair) return null;
+              [lat, lng] = pair;
             } else {
-              lat = parseFloat(String(row[latKey!] || "").replace(/[, ]/g, ""));
-              lng = parseFloat(String(row[lngKey!] || "").replace(/[, ]/g, ""));
+              return null;
             }
 
             const address  = addressKey ? String(row[addressKey] || "").trim() || undefined : undefined;
             const rawType  = shopTypeKey ? String(row[shopTypeKey] || "").trim() : "";
             const shopType = shopTypeOverride !== "auto" ? shopTypeOverride : autoDetectShopType(name, rawType);
-            if (!name || isNaN(lat) || isNaN(lng)) return null;
-            if (lat < 30 || lat > 40 || lng < 120 || lng > 135) return null;
             return { id: `excel-t${Date.now()}-${i}`, name, lat, lng, address, shopType } as TobaccoShop;
           }).filter(Boolean) as TobaccoShop[];
 
           if (shops.length === 0) {
+            const sampleRow = rows[0];
+            const sampleA = latKey ? String(sampleRow?.[latKey] ?? "") : "";
+            const sampleB = lngKey ? String(sampleRow?.[lngKey] ?? "") : "";
             setTobaccoError(
               `유효한 행이 없습니다 (전체 ${rows.length}행 처리).\n` +
-              "• 위도 범위: 30 ~ 40\n• 경도 범위: 120 ~ 135"
+              `첫 행 좌표 샘플 — ${latKey ?? "위도"}: "${sampleA}", ${lngKey ?? "경도"}: "${sampleB}"\n` +
+              "좌표가 한국 범위(위도 30~40, 경도 120~135)에 있는지 확인해 주세요."
             );
             return;
           }
