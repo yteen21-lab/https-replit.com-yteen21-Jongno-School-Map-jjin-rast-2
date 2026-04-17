@@ -150,6 +150,24 @@ declare namespace kakao {
           options?: PlaceSearchOptions
         ): void;
       }
+      interface AddressSearchResult {
+        address_name: string;
+        address_type: string;
+        x: string;
+        y: string;
+        address: Record<string, string> | null;
+        road_address: Record<string, string> | null;
+      }
+      class Geocoder {
+        addressSearch(
+          address: string,
+          callback: (result: AddressSearchResult[], status: Status) => void
+        ): void;
+        coord2Address(
+          lng: number, lat: number,
+          callback: (result: Array<{ address: Record<string, string>; road_address: Record<string, string> | null }>, status: Status) => void
+        ): void;
+      }
     }
   }
 }

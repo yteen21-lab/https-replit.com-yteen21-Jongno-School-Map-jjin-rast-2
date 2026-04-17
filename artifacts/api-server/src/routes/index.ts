@@ -4,6 +4,7 @@ import schoolMapDataRouter from "./schoolMapData";
 import kakaoProxyRouter from "./kakaoProxy";
 import kakaoSchoolSearchRouter from "./kakaoSchoolSearch";
 import adminAuthRouter from "./adminAuth";
+import kakaoGeocodeRouter from "./kakaoGeocode";
 
 const router: IRouter = Router();
 
@@ -12,5 +13,6 @@ router.use(schoolMapDataRouter);
 router.use(kakaoProxyRouter);
 router.use(kakaoSchoolSearchRouter);
 router.use(adminAuthRouter);
+router.use(kakaoGeocodeRouter);
 
 export default router;

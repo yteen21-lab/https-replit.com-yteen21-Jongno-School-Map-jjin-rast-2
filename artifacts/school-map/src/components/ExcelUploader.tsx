@@ -267,6 +267,44 @@ function dedupKey(name: string, lat: number, lng: number): string {
   return `${name.trim().toLowerCase()}|${lat.toFixed(4)}|${lng.toFixed(4)}`;
 }
 
+/* 카카오 SDK Geocoder로 단일 주소 변환 (브라우저 클라이언트 실행) */
+function geocodeOne(address: string): Promise<{ lat: number; lng: number } | null> {
+  return new Promise((resolve) => {
+    const services = (window as unknown as { kakao?: { maps?: { services?: typeof kakao.maps.services } } }).kakao?.maps?.services;
+    if (!services?.Geocoder) { resolve(null); return; }
+    const geocoder = new services.Geocoder();
+    geocoder.addressSearch(address, (result, status) => {
+      if (status === "OK" && result?.[0]) {
+        resolve({ lat: parseFloat(result[0].y), lng: parseFloat(result[0].x) });
+      } else {
+        resolve(null);
+      }
+    });
+  });
+}
+
+/* 주소 배치를 카카오 JS SDK로 지오코딩 (브라우저 클라이언트에서 실행)
+ * onProgress(done, total)로 진행 상황 콜백 */
+async function geocodeAddresses(
+  addresses: string[],
+  onProgress?: (done: number, total: number) => void
+): Promise<Array<{ lat: number | null; lng: number | null }>> {
+  const results: Array<{ lat: number | null; lng: number | null }> = [];
+  for (let i = 0; i < addresses.length; i++) {
+    const addr = addresses[i].trim();
+    if (!addr) {
+      results.push({ lat: null, lng: null });
+    } else {
+      const coords = await geocodeOne(addr);
+      results.push(coords ? { lat: coords.lat, lng: coords.lng } : { lat: null, lng: null });
+    }
+    onProgress?.(i + 1, addresses.length);
+    /* 50ms 지연 — Kakao Geocoder QPS 제한 초과 방지 */
+    if (i < addresses.length - 1) await new Promise(r => setTimeout(r, 50));
+  }
+  return results;
+}
+
 export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, existingSchools = [], existingTobacco = [] }: ExcelUploaderProps) {
   const schoolInputRef = useRef<HTMLInputElement>(null);
   const tobaccoInputRef = useRef<HTMLInputElement>(null);
@@ -278,6 +316,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
   const [schoolSuccess, setSchoolSuccess] = useState<{ added: number; skipped: number } | null>(null);
   const [tobaccoSuccess, setTobaccoSuccess] = useState<{ total: number; muIn: number; yuIn: number; skipped: number } | null>(null);
   const [shopTypeOverride, setShopTypeOverride] = useState<"auto" | "무인" | "유인">("auto");
+  const [geocoding, setGeocoding] = useState<{ label: string; done: boolean } | null>(null);
 
   const processSchoolFile = useCallback(
     (file: File) => {
@@ -342,13 +381,82 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
           const addrKey = findKey("주소", "address", "addr", "도로명", "지번", "소재지");
           const propRadKey = findKey("부지반경", "부지 반경", "부지", "propertyRadius", "property_radius", "반경", "교지반경");
 
-          if (!nameKey || (!effectiveLatKey && !effectiveLngKey && !effectiveCoordKey)) {
+          /* 좌표 없음 + 주소 있음 → 지오코딩 모드 */
+          const canGeocode = !nameKey ? false : (!effectiveLatKey && !effectiveLngKey && !effectiveCoordKey && !!addrKey);
+
+          if (!nameKey || (!effectiveLatKey && !effectiveLngKey && !effectiveCoordKey && !canGeocode)) {
             const missing: string[] = [];
             if (!nameKey) missing.push("학교명(이름)");
-            if (!latKey && !lngKey && !coordKey) missing.push("위도·경도 (또는 합산 좌표열)");
+            if (!latKey && !lngKey && !coordKey && !addrKey) missing.push("위도·경도 (또는 주소열)");
+            else if (!latKey && !lngKey && !coordKey) missing.push("위도·경도 (또는 합산 좌표열)");
             setSchoolError(
               `필수 컬럼 없음: ${missing.join(", ")}\n감지된 컬럼: ${detectedHeaders.join(", ") || "(없음)"}`
             );
+            return;
+          }
+
+          if (canGeocode) {
+            /* 주소 → 좌표 변환 후 처리 */
+            const services = (window as unknown as { kakao?: { maps?: { services?: { Geocoder?: unknown } } } }).kakao?.maps?.services;
+            if (!services?.Geocoder) {
+              setSchoolError("카카오 지도 SDK가 아직 로드되지 않았습니다. 잠시 후 다시 시도해 주세요.");
+              return;
+            }
+            const addresses = rows.map((row) => addrKey ? String(row[addrKey] || "").trim() : "");
+            setGeocoding({ label: `주소 변환 중... (0/${addresses.length})`, done: false });
+            (async () => {
+              try {
+                const geoResults = await geocodeAddresses(addresses, (done, total) => {
+                  setGeocoding({ label: `주소 변환 중... (${done}/${total})`, done: false });
+                });
+                const schools: School[] = rows.map((row, i) => {
+                  const name = String(row[nameKey!] || "").trim();
+                  if (!name) return null;
+                  const coords = geoResults[i];
+                  if (!coords || coords.lat === null || coords.lng === null) return null;
+                  const typeStr = typeKey ? String(row[typeKey] || "") : "";
+                  const addrStr = addrKey ? String(row[addrKey] || "").trim() : "";
+                  const district = distKey
+                    ? String(row[distKey] || "").trim() || undefined
+                    : addrStr ? addrStr.match(/([가-힣]+구)/)?.[1] : undefined;
+                  const prRaw = propRadKey ? parseFloat(String(row[propRadKey] || "")) : NaN;
+                  const propertyRadius = !isNaN(prRaw) && prRaw > 0 ? prRaw : undefined;
+                  return {
+                    id: `excel-s${Date.now()}-${i}`,
+                    name, lat: coords.lat, lng: coords.lng,
+                    type: detectSchoolType(name, typeStr, addrStr),
+                    district, propertyRadius,
+                  } as School;
+                }).filter(Boolean) as School[];
+
+                if (schools.length === 0) {
+                  setGeocoding(null);
+                  setSchoolError(`주소 변환 결과 유효한 항목이 없습니다 (전체 ${addresses.length}건 중 모두 실패).\n주소 형식을 확인해 주세요.`);
+                  return;
+                }
+
+                const existingKeys = new Set(existingSchools.map((s) => dedupKey(s.name, s.lat, s.lng)));
+                const fileKeys = new Set<string>();
+                const unique = schools.filter((s) => {
+                  const k = dedupKey(s.name, s.lat, s.lng);
+                  if (existingKeys.has(k) || fileKeys.has(k)) return false;
+                  fileKeys.add(k);
+                  return true;
+                });
+                const skipped = schools.length - unique.length;
+                setGeocoding({ label: `완료 (${unique.length}건 변환)`, done: true });
+                setTimeout(() => setGeocoding(null), 3000);
+                if (unique.length === 0) {
+                  setSchoolError(`모든 항목(${schools.length}개)이 이미 등록된 데이터와 중복입니다.`);
+                  return;
+                }
+                setSchoolSuccess({ added: unique.length, skipped });
+                onSchoolsLoaded(unique);
+              } catch (err) {
+                setGeocoding(null);
+                setSchoolError(`주소 변환 실패: ${err instanceof Error ? err.message : String(err)}`);
+              }
+            })();
             return;
           }
 
@@ -493,13 +601,74 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
             "shoptype", "type", "category"
           );
 
-          if (!nameKey || (!effectiveLatKey && !effectiveLngKey && !effectiveCoordKey)) {
+          /* 좌표 없음 + 주소 있음 → 지오코딩 모드 */
+          const canGeocodeTobacco = !nameKey ? false : (!effectiveLatKey && !effectiveLngKey && !effectiveCoordKey && !!addressKey);
+
+          if (!nameKey || (!effectiveLatKey && !effectiveLngKey && !effectiveCoordKey && !canGeocodeTobacco)) {
             const missing: string[] = [];
             if (!nameKey) missing.push("업소명(이름)");
-            if (!effectiveLatKey && !effectiveLngKey && !effectiveCoordKey) missing.push("위도·경도 (또는 합산 좌표열)");
+            if (!effectiveLatKey && !effectiveLngKey && !effectiveCoordKey && !addressKey) missing.push("위도·경도 (또는 주소열)");
+            else if (!effectiveLatKey && !effectiveLngKey && !effectiveCoordKey) missing.push("위도·경도 (또는 합산 좌표열)");
             setTobaccoError(
               `필수 컬럼 없음: ${missing.join(", ")}\n감지된 컬럼: ${detectedHeaders.join(", ") || "(없음)"}`
             );
+            return;
+          }
+
+          if (canGeocodeTobacco) {
+            const services = (window as unknown as { kakao?: { maps?: { services?: { Geocoder?: unknown } } } }).kakao?.maps?.services;
+            if (!services?.Geocoder) {
+              setTobaccoError("카카오 지도 SDK가 아직 로드되지 않았습니다. 잠시 후 다시 시도해 주세요.");
+              return;
+            }
+            const addresses = rows.map((row) => addressKey ? String(row[addressKey] || "").trim() : "");
+            setGeocoding({ label: `주소 변환 중... (0/${addresses.length})`, done: false });
+            (async () => {
+              try {
+                const geoResults = await geocodeAddresses(addresses, (done, total) => {
+                  setGeocoding({ label: `주소 변환 중... (${done}/${total})`, done: false });
+                });
+                const shops: TobaccoShop[] = rows.map((row, i) => {
+                  const name = String(row[nameKey!] || "").trim();
+                  if (!name) return null;
+                  const coords = geoResults[i];
+                  if (!coords || coords.lat === null || coords.lng === null) return null;
+                  const addrStr = addressKey ? String(row[addressKey] || "").trim() || undefined : undefined;
+                  const rawType = shopTypeKey ? String(row[shopTypeKey] || "").trim() : "";
+                  const shopType = shopTypeOverride !== "auto" ? shopTypeOverride : autoDetectShopType(name, rawType);
+                  return { id: `excel-t${Date.now()}-${i}`, name, lat: coords.lat, lng: coords.lng, address: addrStr, shopType } as TobaccoShop;
+                }).filter(Boolean) as TobaccoShop[];
+
+                if (shops.length === 0) {
+                  setGeocoding(null);
+                  setTobaccoError(`주소 변환 결과 유효한 항목이 없습니다 (전체 ${addresses.length}건 중 모두 실패).\n주소 형식을 확인해 주세요.`);
+                  return;
+                }
+
+                const existingTKeys = new Set(existingTobacco.map((s) => dedupKey(s.name, s.lat, s.lng)));
+                const fileTKeys = new Set<string>();
+                const unique = shops.filter((s) => {
+                  const k = dedupKey(s.name, s.lat, s.lng);
+                  if (existingTKeys.has(k) || fileTKeys.has(k)) return false;
+                  fileTKeys.add(k);
+                  return true;
+                });
+                const skipped = shops.length - unique.length;
+                const muIn = unique.filter(s => s.shopType !== "유인").length;
+                const yuIn = unique.filter(s => s.shopType === "유인").length;
+                setGeocoding({ label: `완료 (${unique.length}건 변환)`, done: true });
+                setTimeout(() => setGeocoding(null), 3000);
+                if (unique.length === 0) {
+                  setTobaccoError(`모든 항목(${shops.length}개)이 이미 등록된 데이터와 중복입니다.`);
+                  return;
+                }
+                setTobaccoSuccess({ total: unique.length, muIn, yuIn, skipped });
+                onTobaccoShopsLoaded?.(unique);
+              } catch (err) {
+                setGeocoding(null);
+                setTobaccoError(`주소 변환 실패: ${err instanceof Error ? err.message : String(err)}`);
+              }
+            })();
             return;
           }
 
@@ -621,6 +790,17 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
               onChange={(e) => handleSchoolFile(e.target.files?.[0])} />
           </div>
 
+          {/* 지오코딩 진행 표시 */}
+          {geocoding && (
+            <div className={`rounded-lg px-2 py-1.5 flex items-center gap-1.5 text-[10px] font-semibold ${
+              geocoding.done ? "bg-green-50 border border-green-200 text-green-700" : "bg-blue-50 border border-blue-200 text-blue-700"
+            }`}>
+              {!geocoding.done && <span className="inline-block w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />}
+              {geocoding.done && "✓ "}
+              {geocoding.label}
+            </div>
+          )}
+
           {schoolSuccess !== null && (
             <div className="bg-green-50 border border-green-200 rounded-lg px-2 py-1.5 space-y-0.5">
               <p className="text-[10px] text-green-700 font-semibold">✓ 학교 {schoolSuccess.added}개 추가됨</p>
@@ -641,7 +821,8 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
             <p>• 이름: <span className="font-mono">학교명 / 이름 / name</span></p>
             <p>• 위치 <span className="text-green-700 font-semibold">(택1)</span></p>
             <p className="pl-2">① 분리: <span className="font-mono">위도</span> + <span className="font-mono">경도</span> (별도 열)</p>
-            <p className="pl-2">② 합산: <span className="font-mono">위도,경도</span> 또는 <span className="font-mono">좌표</span> 한 열에 <span className="font-mono">37.56,126.97</span> 형식</p>
+            <p className="pl-2">② 합산: <span className="font-mono">좌표</span> 한 열에 <span className="font-mono">37.56,126.97</span> 형식</p>
+            <p className="pl-2">③ <span className="font-mono">주소</span> 열만 있어도 자동 좌표 변환</p>
             <p>• 선택: <span className="font-mono">학교구분, 구, 주소</span></p>
             <p className="text-[9px] text-slate-400 pt-0.5">※ 제목행·빈행이 앞에 있어도 자동 건너뜀</p>
           </div>
@@ -700,6 +881,17 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
               onChange={(e) => handleTobaccoFile(e.target.files?.[0])} />
           </div>
 
+          {/* 지오코딩 진행 표시 */}
+          {geocoding && (
+            <div className={`rounded-lg px-2 py-1.5 flex items-center gap-1.5 text-[10px] font-semibold ${
+              geocoding.done ? "bg-green-50 border border-green-200 text-green-700" : "bg-blue-50 border border-blue-200 text-blue-700"
+            }`}>
+              {!geocoding.done && <span className="inline-block w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />}
+              {geocoding.done && "✓ "}
+              {geocoding.label}
+            </div>
+          )}
+
           {tobaccoSuccess !== null && (
             <div className="bg-orange-50 border border-orange-200 rounded-lg px-2 py-1.5 space-y-0.5">
               <p className="text-[10px] text-orange-700 font-semibold">✓ 업소 {tobaccoSuccess.total}개 추가됨</p>
@@ -719,8 +911,9 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
           <div className="bg-slate-50 rounded-lg p-2 text-[10px] text-slate-500 space-y-0.5">
             <p className="font-semibold text-slate-600">컬럼 안내</p>
             <p>• 이름: <span className="font-mono">업소명 / 매장명 / 상호명</span></p>
-            <p>• 위치: <span className="font-mono">위도, 경도</span> (필수)</p>
-            <p>• 주소: <span className="font-mono">주소 / 도로명</span> (선택)</p>
+            <p>• 위치 <span className="text-orange-600 font-semibold">(택1)</span></p>
+            <p className="pl-2">① <span className="font-mono">위도, 경도</span> 열 (직접 좌표)</p>
+            <p className="pl-2">② <span className="font-mono">주소</span> 열만 있어도 자동 변환</p>
 
             <div className="mt-1.5 pt-1.5 border-t border-slate-200 space-y-0.5">
               <p className="font-semibold text-slate-600">매장유형 컬럼</p>
