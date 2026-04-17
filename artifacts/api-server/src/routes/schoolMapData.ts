@@ -5,7 +5,8 @@ const router: IRouter = Router();
 
 const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
 const BUCKET_ID = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID ?? "";
-const GCS_FILE  = "school-map-data.json";
+const GCS_FILE   = "school-map-data.json";
+const CACHE_TTL  = 60_000; // 1분 (ms)
 
 function makeStorage(): Storage {
   return new Storage({
@@ -33,7 +34,25 @@ interface SharedData {
   savedAt: string;
 }
 
-async function loadData(): Promise<SharedData | null> {
+/* ── 메모리 캐시 ── */
+let cache: { data: SharedData; fetchedAt: number } | null = null;
+
+function getCached(): SharedData | null {
+  if (!cache) return null;
+  if (Date.now() - cache.fetchedAt > CACHE_TTL) return null; // 만료
+  return cache.data;
+}
+
+function setCache(data: SharedData): void {
+  cache = { data, fetchedAt: Date.now() };
+}
+
+function clearCache(): void {
+  cache = null;
+}
+
+/* ── GCS I/O ── */
+async function loadFromGCS(): Promise<SharedData | null> {
   if (!BUCKET_ID) return null;
   try {
     const file = makeStorage().bucket(BUCKET_ID).file(GCS_FILE);
@@ -46,7 +65,7 @@ async function loadData(): Promise<SharedData | null> {
   }
 }
 
-async function saveData(data: SharedData): Promise<void> {
+async function saveToGCS(data: SharedData): Promise<void> {
   if (!BUCKET_ID) throw new Error("Object storage not configured");
   const file = makeStorage().bucket(BUCKET_ID).file(GCS_FILE);
   await file.save(JSON.stringify(data, null, 2), {
@@ -55,12 +74,23 @@ async function saveData(data: SharedData): Promise<void> {
   });
 }
 
+/* ── 라우트 ── */
 router.get("/school-map-data", async (_req, res) => {
-  const data = await loadData();
+  // 1. 캐시 우선
+  const cached = getCached();
+  if (cached) {
+    res.json(cached);
+    return;
+  }
+
+  // 2. 캐시 미스 → GCS 조회
+  const data = await loadFromGCS();
   if (!data || (data.schools.length === 0 && data.tobacco.length === 0)) {
     res.status(404).json({ error: "No shared data yet" });
     return;
   }
+
+  setCache(data);
   res.json(data);
 });
 
@@ -76,10 +106,12 @@ router.post("/school-map-data", async (req, res) => {
     savedAt: new Date().toISOString(),
   };
   try {
-    await saveData(data);
+    await saveToGCS(data);
+    setCache(data); // 저장 즉시 캐시 갱신 → 다음 GET은 GCS 호출 없이 최신 데이터 반환
     res.json({ ok: true, savedAt: data.savedAt });
   } catch (err) {
     console.error("GCS save error:", err);
+    clearCache(); // 저장 실패 시 캐시 무효화
     res.status(500).json({ error: "Failed to save data" });
   }
 });
