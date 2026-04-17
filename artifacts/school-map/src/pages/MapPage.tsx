@@ -256,21 +256,40 @@ export default function MapPage() {
     return () => window.removeEventListener("resize", handler);
   }, []);
 
-  /* 서버에서 공유 데이터 로드 */
+  /* 서버에서 공유 데이터 로드 — 없으면 로컬 데이터를 자동 업로드 */
   useEffect(() => {
     fetch("/api/school-map-data")
-      .then((r) => {
-        if (!r.ok) return null;
-        return r.json() as Promise<{ schools: School[]; tobacco: TobaccoShop[]; savedAt: string }>;
+      .then(async (r) => {
+        if (r.ok) {
+          /* 서버에 데이터가 있으면 그걸 사용 */
+          const data = await r.json() as { schools: School[]; tobacco: TobaccoShop[]; savedAt: string };
+          setSchools(data.schools);
+          setTobaccoShops(data.tobacco);
+          setServerSynced(true);
+          setSavedAt(data.savedAt ? new Date(data.savedAt).toLocaleTimeString("ko-KR") : null);
+        } else {
+          /* 서버에 데이터 없음 → 로컬 데이터가 있으면 자동 push (모바일 공유를 위해) */
+          const localSchools  = migrateSampleSchools();
+          const localTobacco  = loadFromStorage<TobaccoShop[]>(STORAGE_KEY_TOBACCO, []);
+          const hasLocalData  = localSchools.length > 0 || localTobacco.length > 0;
+          if (hasLocalData) {
+            fetch("/api/school-map-data", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ schools: localSchools, tobacco: localTobacco }),
+            })
+              .then((pr) => {
+                if (pr.ok) {
+                  setServerSynced(true);
+                  setSavedAt(new Date().toLocaleTimeString("ko-KR"));
+                }
+              })
+              .catch(() => {});
+          }
+        }
       })
-      .then((data) => {
-        if (!data) return;
-        setSchools(data.schools);
-        setTobaccoShops(data.tobacco);
-        setServerSynced(true);
-        setSavedAt(data.savedAt ? new Date(data.savedAt).toLocaleTimeString("ko-KR") : null);
-      })
-      .catch(() => { /* 서버 없으면 로컬 데이터 사용 */ });
+      .catch(() => { /* 서버 연결 불가 → 로컬 데이터 그대로 유지 */ });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
