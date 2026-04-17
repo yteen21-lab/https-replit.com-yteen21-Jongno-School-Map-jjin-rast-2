@@ -672,7 +672,7 @@ export default function MapPage() {
             <div className="w-10 h-1 bg-slate-300 rounded-full mb-1" />
             <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
               <SchoolIcon className="w-3.5 h-3.5 text-green-600" />
-              학교 반경 지도
+              Youth Protection Map
               {violationCount > 0 && (
                 <span className="bg-red-50 text-red-600 border border-red-200 text-[10px] px-1.5 py-0.5 rounded-full font-semibold">
                   ⚠ {violationCount}곳
@@ -689,7 +689,7 @@ export default function MapPage() {
               <div className="px-3 py-3 border-b border-slate-100">
                 <div className="flex items-center gap-1.5 mb-0.5">
                   <SchoolIcon className="h-4 w-4 text-green-600 flex-shrink-0" />
-                  <h1 className="text-xs font-bold text-slate-800 leading-tight">학교 반경 지도</h1>
+                  <h1 className="text-xs font-bold text-slate-800 leading-tight">Youth Protection: Tobacco Retail Monitoring Map</h1>
                 </div>
                 <p className="text-[9px] text-slate-400">서울시 전체 · 초중고</p>
                 {violationCount > 0 && (
