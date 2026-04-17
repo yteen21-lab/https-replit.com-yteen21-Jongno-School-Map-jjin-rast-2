@@ -13,7 +13,7 @@ import {
   SCHOOL_TYPE_COLORS, TOBACCO_ZONE_COLORS,
   computeDistrictPolygon,
 } from "@/types/school";
-import { RefreshCw, School as SchoolIcon, ChevronLeft, ChevronRight, Search, X, Link2, Check, CloudUpload, Cloud, Pencil, Trash2 } from "lucide-react";
+import { RefreshCw, School as SchoolIcon, ChevronLeft, ChevronRight, Search, X, Link2, Check, CloudUpload, Cloud, Pencil, Trash2, Lock, Unlock, Eye } from "lucide-react";
 import ymcaLogo from "@assets/ymca로고_1776149746053.jpg";
 import kctcreLogo from "@assets/image_1776150010933.png";
 import DistrictMiniMap from "@/components/DistrictMiniMap";
@@ -90,8 +90,8 @@ interface DistrictPanelProps {
   allSchools: School[];
   tobaccoShops: TobaccoShop[];
   onClose: () => void;
-  onEdit: (school: School) => void;
-  onDelete: (id: string) => void;
+  onEdit?: (school: School) => void;
+  onDelete?: (id: string) => void;
 }
 
 function DistrictPanel({ school, allSchools, tobaccoShops, onClose, onEdit, onDelete }: DistrictPanelProps) {
@@ -135,30 +135,34 @@ function DistrictPanel({ school, allSchools, tobaccoShops, onClose, onEdit, onDe
           <p className="text-slate-300 text-[10px] leading-tight">{school.type} · {district}</p>
         </div>
 
-        {/* 수정 버튼 */}
-        <button
-          onClick={() => onEdit(school)}
-          title="학교 정보 수정"
-          className="flex-shrink-0 flex items-center gap-1 text-[10px] text-slate-200 hover:text-white bg-white/10 hover:bg-white/25 rounded px-1.5 py-1 transition-colors"
-        >
-          <Pencil className="w-3 h-3" />
-          수정
-        </button>
+        {/* 수정 버튼 — 관리자만 */}
+        {onEdit && (
+          <button
+            onClick={() => onEdit(school)}
+            title="학교 정보 수정"
+            className="flex-shrink-0 flex items-center gap-1 text-[10px] text-slate-200 hover:text-white bg-white/10 hover:bg-white/25 rounded px-1.5 py-1 transition-colors"
+          >
+            <Pencil className="w-3 h-3" />
+            수정
+          </button>
+        )}
 
-        {/* 삭제 버튼 */}
-        <button
-          onClick={() => {
-            if (window.confirm(`"${school.name}"을(를) 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
-              onDelete(school.id);
-              onClose();
-            }
-          }}
-          title="학교 삭제"
-          className="flex-shrink-0 flex items-center gap-1 text-[10px] text-slate-200 hover:text-red-300 bg-white/10 hover:bg-red-500/25 rounded px-1.5 py-1 transition-colors"
-        >
-          <Trash2 className="w-3 h-3" />
-          삭제
-        </button>
+        {/* 삭제 버튼 — 관리자만 */}
+        {onDelete && (
+          <button
+            onClick={() => {
+              if (window.confirm(`"${school.name}"을(를) 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
+                onDelete(school.id);
+                onClose();
+              }
+            }}
+            title="학교 삭제"
+            className="flex-shrink-0 flex items-center gap-1 text-[10px] text-slate-200 hover:text-red-300 bg-white/10 hover:bg-red-500/25 rounded px-1.5 py-1 transition-colors"
+          >
+            <Trash2 className="w-3 h-3" />
+            삭제
+          </button>
+        )}
 
         {/* 닫기 */}
         <button onClick={onClose} className="flex-shrink-0 text-slate-400 hover:text-white text-lg leading-none ml-1">×</button>
@@ -241,6 +245,11 @@ export default function MapPage() {
   >(null);
   const [addSchoolMode, setAddSchoolMode] = useState(false);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  /* 관리자 모드 */
+  const [isAdmin, setIsAdmin] = useState(() => sessionStorage.getItem("adminMode") === "1");
+  const [showAdminModal, setShowAdminModal] = useState(false);
+  const [adminPwInput, setAdminPwInput] = useState("");
+  const [adminError, setAdminError] = useState("");
   const isResizing = useRef(false);
   const touchStartY = useRef(0);
   /* 최신 상태를 handleSave에서 안전하게 읽기 위한 ref */
@@ -364,6 +373,33 @@ export default function MapPage() {
       saveToStorage(STORAGE_KEY_TOBACCO, merged);
       return merged;
     });
+  }, []);
+
+  const handleAdminLogin = useCallback(async () => {
+    setAdminError("");
+    try {
+      const res = await fetch("/api/admin-verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: adminPwInput }),
+      });
+      if (res.ok) {
+        sessionStorage.setItem("adminMode", "1");
+        setIsAdmin(true);
+        setShowAdminModal(false);
+        setAdminPwInput("");
+      } else {
+        const data = await res.json() as { error?: string };
+        setAdminError(data.error ?? "비밀번호가 올바르지 않습니다.");
+      }
+    } catch {
+      setAdminError("서버 연결에 실패했습니다.");
+    }
+  }, [adminPwInput]);
+
+  const handleAdminLogout = useCallback(() => {
+    sessionStorage.removeItem("adminMode");
+    setIsAdmin(false);
   }, []);
 
   const handleReset = useCallback(() => {
@@ -614,14 +650,16 @@ export default function MapPage() {
               >
                 목록 ({filteredSchools.length})
               </button>
-              <button
-                onClick={() => setActiveTab("upload")}
-                className={`flex-1 py-2 text-[10px] font-medium transition-colors ${
-                  activeTab === "upload" ? "text-green-600 border-b-2 border-green-600" : "text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                업로드
-              </button>
+              {isAdmin && (
+                <button
+                  onClick={() => setActiveTab("upload")}
+                  className={`flex-1 py-2 text-[10px] font-medium transition-colors ${
+                    activeTab === "upload" ? "text-green-600 border-b-2 border-green-600" : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  업로드
+                </button>
+              )}
             </div>
 
             {/* Tab Content */}
@@ -640,7 +678,7 @@ export default function MapPage() {
                     schools={filteredSchools}
                     selectedSchool={selectedSchool}
                     onSelectSchool={handleSelectSchool}
-                    onEditSchool={handleEditSchool}
+                    onEditSchool={isAdmin ? handleEditSchool : undefined}
                     query={searchQuery}
                   />
 
@@ -680,15 +718,17 @@ export default function MapPage() {
                                   </span>
                                 )}
                               </button>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleEditTobaccoShop(shop); }}
-                                title="수정"
-                                className="absolute right-1.5 top-1/2 -translate-y-1/2
-                                  opacity-0 group-hover:opacity-100 transition-opacity
-                                  p-1 rounded hover:bg-slate-200 text-slate-400 hover:text-slate-600"
-                              >
-                                <Pencil className="w-3 h-3" />
-                              </button>
+                              {isAdmin && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleEditTobaccoShop(shop); }}
+                                  title="수정"
+                                  className="absolute right-1.5 top-1/2 -translate-y-1/2
+                                    opacity-0 group-hover:opacity-100 transition-opacity
+                                    p-1 rounded hover:bg-slate-200 text-slate-400 hover:text-slate-600"
+                                >
+                                  <Pencil className="w-3 h-3" />
+                                </button>
+                              )}
                             </li>
                           );
                         })}
@@ -704,21 +744,23 @@ export default function MapPage() {
                   <div className="rounded-lg bg-slate-50 border border-slate-200 p-2 text-[10px]">
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-semibold text-slate-600">현재 데이터 현황</span>
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={handleSave}
-                          className="text-[9px] bg-blue-500 hover:bg-blue-600 text-white rounded px-1.5 py-0.5 font-semibold transition-colors flex items-center gap-0.5"
-                        >
-                          <CloudUpload className="w-2.5 h-2.5" />
-                          저장·공유
-                        </button>
-                        <button
-                          onClick={handleReset}
-                          className="text-[9px] text-red-400 hover:text-red-600 underline"
-                        >
-                          초기화
-                        </button>
-                      </div>
+                      {isAdmin && (
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={handleSave}
+                            className="text-[9px] bg-blue-500 hover:bg-blue-600 text-white rounded px-1.5 py-0.5 font-semibold transition-colors flex items-center gap-0.5"
+                          >
+                            <CloudUpload className="w-2.5 h-2.5" />
+                            저장·공유
+                          </button>
+                          <button
+                            onClick={handleReset}
+                            className="text-[9px] text-red-400 hover:text-red-600 underline"
+                          >
+                            초기화
+                          </button>
+                        </div>
+                      )}
                     </div>
                     <div className="text-slate-600 space-y-0.5">
                       <p>• 학교: {schools.length > 0
@@ -878,20 +920,37 @@ export default function MapPage() {
           onAddSchoolFromMap={handleAddSchoolFromMap}
         />
 
-        {/* 지도에서 학교 추가 모드 토글 버튼 */}
+        {/* 지도에서 학교 추가 모드 토글 버튼 — 관리자만 */}
+        {isAdmin && (
+          <button
+            onClick={() => setAddSchoolMode((v) => !v)}
+            style={{ bottom: isMobile ? `${MOBILE_SHEET_HANDLE_H + 10}px` : "1.5rem" }}
+            className={`absolute left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold shadow-lg transition-all ${
+              addSchoolMode
+                ? "bg-blue-600 text-white ring-2 ring-blue-300"
+                : "bg-white text-slate-700 border border-slate-200 hover:bg-blue-50"
+            }`}
+          >
+            <SchoolIcon size={15} />
+            {addSchoolMode
+              ? (isMobile ? "📍 위치 클릭 (재탭 = 해제)" : "📍 학교 위치를 클릭하세요 (버튼 재클릭 = 해제)")
+              : "지도에서 학교 추가"}
+          </button>
+        )}
+
+        {/* 관리자 모드 토글 버튼 (좌하단) */}
         <button
-          onClick={() => setAddSchoolMode((v) => !v)}
+          onClick={() => isAdmin ? handleAdminLogout() : setShowAdminModal(true)}
           style={{ bottom: isMobile ? `${MOBILE_SHEET_HANDLE_H + 10}px` : "1.5rem" }}
-          className={`absolute left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold shadow-lg transition-all ${
-            addSchoolMode
-              ? "bg-blue-600 text-white ring-2 ring-blue-300"
-              : "bg-white text-slate-700 border border-slate-200 hover:bg-blue-50"
+          className={`absolute left-4 z-[1000] flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold shadow-md transition-all border ${
+            isAdmin
+              ? "bg-amber-500 text-white border-amber-600 hover:bg-amber-600"
+              : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
           }`}
+          title={isAdmin ? "관리자 모드 해제" : "관리자 로그인"}
         >
-          <SchoolIcon size={15} />
-          {addSchoolMode
-            ? (isMobile ? "📍 위치 클릭 (재탭 = 해제)" : "📍 학교 위치를 클릭하세요 (버튼 재클릭 = 해제)")
-            : "지도에서 학교 추가"}
+          {isAdmin ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+          {isAdmin ? "관리자" : "뷰어"}
         </button>
 
         {/* Legend (top-right) */}
@@ -968,8 +1027,7 @@ export default function MapPage() {
                 allSchools={schools}
                 tobaccoShops={tobaccoShops}
                 onClose={() => setSelectedSchool(null)}
-                onEdit={handleEditSchool}
-                onDelete={handleDeleteSchool}
+                {...(isAdmin ? { onEdit: handleEditSchool, onDelete: handleDeleteSchool } : {})}
               />
             </div>
           ) : (
@@ -979,8 +1037,7 @@ export default function MapPage() {
               allSchools={schools}
               tobaccoShops={tobaccoShops}
               onClose={() => setSelectedSchool(null)}
-              onEdit={handleEditSchool}
-              onDelete={handleDeleteSchool}
+              {...(isAdmin ? { onEdit: handleEditSchool, onDelete: handleDeleteSchool } : {})}
             />
           )
         )}
@@ -995,6 +1052,48 @@ export default function MapPage() {
         onDeleteSchool={handleDeleteSchool}
         onDeleteTobacco={handleDeleteTobacco}
       />
+
+      {/* 관리자 비밀번호 모달 */}
+      {showAdminModal && (
+        <div
+          className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50"
+          onClick={(e) => { if (e.target === e.currentTarget) { setShowAdminModal(false); setAdminPwInput(""); setAdminError(""); } }}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-80 mx-4">
+            <div className="flex items-center gap-2 mb-4">
+              <Lock className="w-5 h-5 text-amber-500" />
+              <h2 className="text-base font-bold text-slate-800">관리자 로그인</h2>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">관리자 비밀번호를 입력하면 편집 기능이 활성화됩니다.</p>
+            <input
+              type="password"
+              placeholder="비밀번호"
+              value={adminPwInput}
+              onChange={(e) => { setAdminPwInput(e.target.value); setAdminError(""); }}
+              onKeyDown={(e) => e.key === "Enter" && handleAdminLogin()}
+              autoFocus
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent mb-2"
+            />
+            {adminError && (
+              <p className="text-xs text-red-500 mb-2">{adminError}</p>
+            )}
+            <div className="flex gap-2 mt-1">
+              <button
+                onClick={() => { setShowAdminModal(false); setAdminPwInput(""); setAdminError(""); }}
+                className="flex-1 py-2 rounded-lg text-sm text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleAdminLogin}
+                className="flex-1 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
