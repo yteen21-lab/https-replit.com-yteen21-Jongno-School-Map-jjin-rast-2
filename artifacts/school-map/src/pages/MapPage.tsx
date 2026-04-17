@@ -62,6 +62,30 @@ function migrateSampleSchools(): School[] {
   return deduped;
 }
 
+/** 학교 검색 관련성 점수. null = 매칭 안 됨, 숫자 클수록 관련성 높음 */
+function schoolScore(s: School, tokens: string[]): number | null {
+  if (tokens.length === 0) return 0;
+  const name = s.name.toLowerCase();
+  const type = s.type.toLowerCase();
+  const dist = (s.district ?? "").toLowerCase();
+
+  /* 모든 토큰이 최소 하나의 필드에 매칭되어야 함 (AND 조건) */
+  const allMatch = tokens.every(
+    (t) => name.includes(t) || type.includes(t) || dist.includes(t)
+  );
+  if (!allMatch) return null;
+
+  let score = 0;
+  for (const t of tokens) {
+    if (name === t) score += 300;              /* 완전 일치 */
+    else if (name.startsWith(t)) score += 150; /* 이름 앞부분 일치 */
+    else if (name.includes(t)) score += 80;    /* 이름 중간 포함 */
+    if (dist.includes(t)) score += 10;
+    if (type.includes(t)) score += 5;
+  }
+  return score;
+}
+
 function LogoSection() {
   return (
     <div className="px-2 py-2 border-t border-slate-100 space-y-1.5">
@@ -374,29 +398,35 @@ export default function MapPage() {
   const isCustomSchools  = schools.some(s => s.id.startsWith("excel-"));
   const isCustomTobacco  = tobaccoShops.some(s => s.id.startsWith("excel-"));
 
+  /* 공백으로 분리된 검색 토큰 목록 */
+  const searchTokens = useMemo(() => {
+    return searchQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  }, [searchQuery]);
+
   const filteredSchools = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
     let result = schools;
     if (activeSchoolType) result = result.filter((s) => s.type === activeSchoolType);
-    if (!q) return result;
-    return result.filter(
-      (s) =>
-        s.name.toLowerCase().includes(q) ||
-        s.type.includes(q) ||
-        (s.district?.toLowerCase().includes(q) ?? false)
-    );
-  }, [schools, searchQuery, activeSchoolType]);
+    if (searchTokens.length === 0) return result;
+
+    const scored = result
+      .map((s) => ({ s, score: schoolScore(s, searchTokens) }))
+      .filter(({ score }) => score !== null) as Array<{ s: School; score: number }>;
+
+    scored.sort((a, b) => b.score - a.score);
+    return scored.map(({ s }) => s);
+  }, [schools, searchTokens, activeSchoolType]);
 
   const filteredTobaccoShops = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return [];
-    return tobaccoShops.filter(
-      (s) =>
-        s.name.toLowerCase().includes(q) ||
-        (s.address?.toLowerCase().includes(q) ?? false) ||
-        (s.shopType === "유인" ? "오프라인매장" : "무인자판기").includes(q)
-    );
-  }, [tobaccoShops, searchQuery]);
+    if (searchTokens.length === 0) return [];
+    return tobaccoShops.filter((s) => {
+      const name = s.name.toLowerCase();
+      const addr = (s.address ?? "").toLowerCase();
+      const kind = (s.shopType === "유인" ? "유인 오프라인 매장" : "무인 자판기").toLowerCase();
+      return searchTokens.every(
+        (t) => name.includes(t) || addr.includes(t) || kind.includes(t)
+      );
+    });
+  }, [tobaccoShops, searchTokens]);
 
   const violationCount = useMemo(
     () => tobaccoShops.filter((s) => getTobaccoZone(s, schools) !== "외부").length,
