@@ -12,6 +12,7 @@ import {
   getTobaccoZone, haversineDistance,
   SCHOOL_TYPE_COLORS, TOBACCO_ZONE_COLORS,
   computeDistrictPolygon,
+  isSchoolDup, isTobaccoDup,
 } from "@/types/school";
 import { RefreshCw, School as SchoolIcon, ChevronLeft, ChevronRight, Search, X, Link2, Check, CloudUpload, Cloud, Pencil, Trash2, Lock, Unlock, Eye } from "lucide-react";
 import ymcaLogo from "@assets/ymca로고_1776149746053.jpg";
@@ -42,33 +43,13 @@ function clearStorage(...keys: string[]): void {
   try { keys.forEach((k) => localStorage.removeItem(k)); } catch {}
 }
 
-/** 좌표 간 거리 (미터, 평면 근사) */
-function approxMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const dlat = (lat2 - lat1) * 111320;
-  const dlng = (lng2 - lng1) * 111320 * Math.cos(((lat1 + lat2) / 2) * (Math.PI / 180));
-  return Math.sqrt(dlat * dlat + dlng * dlng);
-}
-
-/** 앱 최초 로드 시 구 샘플 데이터(s1~s104) 제거 + 중복 제거 후 저장
- *  중복 판정 기준:
- *  ① 정규화 이름 동일 + 타입 동일 → 중복
- *  ② 정규화 이름 동일 + 좌표 ≤ 80m → 중복 (지오코딩 오차 허용)
- *  ③ 좌표 ≤ 30m (이름 무관)        → 중복 (같은 부지) */
+/** 앱 최초 로드 시 구 샘플 데이터(s1~s104) 제거 + 중복 제거 후 저장 */
 function migrateSampleSchools(): School[] {
   const raw = loadFromStorage<School[]>(STORAGE_KEY_SCHOOLS, []);
   const withoutSamples = raw.filter((s) => !/^s\d+$/.test(s.id));
   const accepted: School[] = [];
   for (const s of withoutSamples) {
-    const nm = s.name.trim().toLowerCase().replace(/[\s·•\-_()（）]/g, "");
-    const isDup = accepted.some((e) => {
-      const en = e.name.trim().toLowerCase().replace(/[\s·•\-_()（）]/g, "");
-      const d  = approxMeters(s.lat, s.lng, e.lat, e.lng);
-      if (nm === en && s.type === e.type) return true;
-      if (nm === en && d <= 80)           return true;
-      if (d <= 30)                        return true;
-      return false;
-    });
-    if (!isDup) accepted.push(s);
+    if (!isSchoolDup(s, accepted)) accepted.push(s);
   }
   if (accepted.length !== raw.length) {
     saveToStorage(STORAGE_KEY_SCHOOLS, accepted);
@@ -81,18 +62,7 @@ function deduplicateTobaccoShops(): TobaccoShop[] {
   const raw = loadFromStorage<TobaccoShop[]>(STORAGE_KEY_TOBACCO, []);
   const accepted: TobaccoShop[] = [];
   for (const s of raw) {
-    const nm   = s.name.trim().toLowerCase().replace(/[\s·•\-_()（）]/g, "");
-    const addr = s.address ? s.address.trim().toLowerCase().replace(/[\s·•\-_()（）]/g, "") : null;
-    const isDup = accepted.some((e) => {
-      const en = e.name.trim().toLowerCase().replace(/[\s·•\-_()（）]/g, "");
-      const d  = approxMeters(s.lat, s.lng, e.lat, e.lng);
-      const ea = e.address ? e.address.trim().toLowerCase().replace(/[\s·•\-_()（）]/g, "") : null;
-      if (nm === en && addr && ea && addr === ea) return true;
-      if (nm === en && d <= 30)                   return true;
-      if (d <= 15)                                return true;
-      return false;
-    });
-    if (!isDup) accepted.push(s);
+    if (!isTobaccoDup(s, accepted)) accepted.push(s);
   }
   if (accepted.length !== raw.length) {
     console.info(`[dedup] 담배샵 중복 ${raw.length - accepted.length}개 제거 (${raw.length} → ${accepted.length})`);
@@ -347,31 +317,14 @@ export default function MapPage() {
           /* 서버에 데이터가 있으면 그걸 사용 */
           const data = await r.json() as { schools: School[]; tobacco: TobaccoShop[]; savedAt: string };
           /* GCS 데이터에도 이름·좌표 기반 중복 제거 적용 */
-          const normN = (n: string) => n.trim().toLowerCase().replace(/[\s·•\-_()（）]/g, "");
           const dedupSchools = (list: School[]): School[] => {
             const acc: School[] = [];
-            for (const s of list) {
-              const nm = normN(s.name);
-              if (!acc.some(e => {
-                const en = normN(e.name);
-                const d = approxMeters(s.lat, s.lng, e.lat, e.lng);
-                return (nm === en && s.type === e.type) || (nm === en && d <= 80) || d <= 30;
-              })) acc.push(s);
-            }
+            for (const s of list) { if (!isSchoolDup(s, acc)) acc.push(s); }
             return acc;
           };
           const dedupTobacco = (list: TobaccoShop[]): TobaccoShop[] => {
             const acc: TobaccoShop[] = [];
-            for (const s of list) {
-              const nm = normN(s.name);
-              const addr = s.address ? normN(s.address) : null;
-              if (!acc.some(e => {
-                const en = normN(e.name);
-                const d = approxMeters(s.lat, s.lng, e.lat, e.lng);
-                const ea = e.address ? normN(e.address) : null;
-                return (nm === en && addr && ea && addr === ea) || (nm === en && d <= 30) || d <= 15;
-              })) acc.push(s);
-            }
+            for (const s of list) { if (!isTobaccoDup(s, acc)) acc.push(s); }
             return acc;
           };
           setSchools(dedupSchools(data.schools));

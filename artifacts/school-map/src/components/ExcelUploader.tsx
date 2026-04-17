@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import * as XLSX from "xlsx";
-import { School, SchoolType, TobaccoShop } from "@/types/school";
+import { School, SchoolType, TobaccoShop, isSchoolDup, isTobaccoDup } from "@/types/school";
 import { Upload, FileSpreadsheet, AlertCircle } from "lucide-react";
 
 interface ExcelUploaderProps {
@@ -257,56 +257,6 @@ function resolveKoreanCoords(rawA: string, rawB: string): [number, number] | nul
     }
   }
   return null;
-}
-
-/** 이름 정규화: 소문자 + 공백·특수문자 제거 */
-function normalizeName(n: string): string {
-  return n.trim().toLowerCase().replace(/[\s·•\-_()（）]/g, "");
-}
-
-/** 좌표 간 거리 (미터, 평면 근사 — 한반도 범위에서 충분히 정확) */
-function approxMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const dlat = (lat2 - lat1) * 111320;
-  const dlng = (lng2 - lng1) * 111320 * Math.cos(((lat1 + lat2) / 2) * (Math.PI / 180));
-  return Math.sqrt(dlat * dlat + dlng * dlng);
-}
-
-/**
- * 학교 중복 여부 판정 (pool 중 하나라도 해당하면 true).
- * ① 정규화 이름 동일 + 타입 동일          → 중복 (가장 강한 조건)
- * ② 정규화 이름 동일 + 좌표 ≤ 80m        → 중복 (타입 불명 등 표기 차이 허용)
- * ③ 좌표 ≤ 30m (이름 무관)               → 중복 (같은 건물/부지, 이름만 다름)
- */
-function isSchoolDup(s: School, pool: School[]): boolean {
-  const nm = normalizeName(s.name);
-  for (const e of pool) {
-    const en = normalizeName(e.name);
-    const d  = approxMeters(s.lat, s.lng, e.lat, e.lng);
-    if (nm === en && s.type === e.type) return true;
-    if (nm === en && d <= 80)           return true;
-    if (d <= 30)                        return true;
-  }
-  return false;
-}
-
-/**
- * 담배 업소 중복 여부 판정.
- * ① 정규화 이름 동일 + 주소 동일          → 중복
- * ② 정규화 이름 동일 + 좌표 ≤ 30m        → 중복 (지오코딩 오차 허용)
- * ③ 좌표 ≤ 15m (이름 무관)               → 중복 (같은 장소, 이름 표기 차이)
- */
-function isTobaccoDup(s: TobaccoShop, pool: TobaccoShop[]): boolean {
-  const nm   = normalizeName(s.name);
-  const addr = s.address ? normalizeName(s.address) : null;
-  for (const e of pool) {
-    const en = normalizeName(e.name);
-    const d  = approxMeters(s.lat, s.lng, e.lat, e.lng);
-    const ea = e.address ? normalizeName(e.address) : null;
-    if (nm === en && addr && ea && addr === ea) return true;
-    if (nm === en && d <= 30)                   return true;
-    if (d <= 15)                                return true;
-  }
-  return false;
 }
 
 /* 카카오 SDK Geocoder로 단일 주소 변환 (브라우저 클라이언트 실행) */
