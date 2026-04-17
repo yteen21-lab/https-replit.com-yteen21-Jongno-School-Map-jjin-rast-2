@@ -894,10 +894,10 @@ export default function MapPage() {
             : "지도에서 학교 추가"}
         </button>
 
-        {/* Legend + ZoneShopPanel overlay */}
+        {/* Legend (top-right) */}
         <div className="absolute top-4 right-4 z-[1000] flex items-start gap-2">
-          {/* Zone Shop Panel — left of legend */}
-          {activeZonePanel && (
+          {/* 데스크톱: ZoneShopPanel을 Legend 왼쪽에 나란히 */}
+          {!isMobile && activeZonePanel && (
             <ZoneShopPanel
               zone={activeZonePanel}
               tobaccoShops={tobaccoShops}
@@ -934,6 +934,26 @@ export default function MapPage() {
             defaultCollapsed={isMobile}
           />
         </div>
+
+        {/* 모바일: ZoneShopPanel을 하단 오버레이로 표시 */}
+        {isMobile && activeZonePanel && (
+          <div
+            className="fixed left-0 right-0 z-[1002] rounded-t-2xl shadow-2xl overflow-hidden"
+            style={{ bottom: `${MOBILE_SHEET_HANDLE_H}px`, maxHeight: "60vh" }}
+          >
+            <ZoneShopPanel
+              zone={activeZonePanel}
+              tobaccoShops={tobaccoShops}
+              schools={schools}
+              onClose={() => setActiveZonePanel(null)}
+              onSelectShop={(shop) => {
+                setSelectedTobaccoShop(shop);
+                setActiveZonePanel(null);
+              }}
+              fullWidth
+            />
+          </div>
+        )}
 
         {/* District Info Panel */}
         {selectedSchool && (

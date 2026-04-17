@@ -11,6 +11,7 @@ interface ZoneShopPanelProps {
   schools: School[];
   onClose: () => void;
   onSelectShop: (shop: TobaccoShop) => void;
+  fullWidth?: boolean;
 }
 
 function getNearestSchool(shop: TobaccoShop, schools: School[]): { name: string; dist: number } | null {
@@ -47,7 +48,7 @@ const ZONE_CONFIG = {
 } as const;
 
 export default function ZoneShopPanel({
-  zone, tobaccoShops, schools, onClose, onSelectShop,
+  zone, tobaccoShops, schools, onClose, onSelectShop, fullWidth = false,
 }: ZoneShopPanelProps) {
   const cfg = ZONE_CONFIG[zone];
   const zoneKey = cfg.label;
@@ -62,7 +63,7 @@ export default function ZoneShopPanel({
   );
 
   return (
-    <div className="flex flex-col w-72 max-h-[calc(100vh-120px)] rounded-xl shadow-2xl border border-white/20 overflow-hidden bg-white text-sm">
+    <div className={`flex flex-col ${fullWidth ? "w-full" : "w-72"} max-h-[calc(100vh-120px)] ${fullWidth ? "" : "rounded-xl shadow-2xl"} border border-white/20 overflow-hidden bg-white text-sm`}>
       {/* Header */}
       <div className={`${cfg.headerBg} px-3 py-2.5 flex items-start justify-between gap-2 flex-shrink-0`}>
         <div className="text-white">
