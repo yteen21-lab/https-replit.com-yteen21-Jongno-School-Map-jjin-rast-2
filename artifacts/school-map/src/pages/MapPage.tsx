@@ -92,9 +92,10 @@ interface DistrictPanelProps {
   onClose: () => void;
   onEdit?: (school: School) => void;
   onDelete?: (id: string) => void;
+  isMobile?: boolean;
 }
 
-function DistrictPanel({ school, allSchools, tobaccoShops, onClose, onEdit, onDelete }: DistrictPanelProps) {
+function DistrictPanel({ school, allSchools, tobaccoShops, onClose, onEdit, onDelete, isMobile }: DistrictPanelProps) {
   const district = school.district ?? "기타";
   const distSchools = allSchools.filter((s) => s.district === district);
 
@@ -121,8 +122,12 @@ function DistrictPanel({ school, allSchools, tobaccoShops, onClose, onEdit, onDe
 
   return (
     <div
-      className="absolute bottom-6 right-4 z-[1000] bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col"
-      style={{ width: "260px", height: "260px" }}
+      className={
+        isMobile
+          ? "relative w-full flex flex-col overflow-hidden"
+          : "absolute bottom-6 right-4 z-[1000] bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col"
+      }
+      style={isMobile ? { height: "260px" } : { width: "260px", height: "260px" }}
     >
       {/* Header */}
       <div
@@ -1100,7 +1105,7 @@ export default function MapPage() {
           isMobile ? (
             /* 모바일: 하단 시트 핸들 바로 위에 풀-너비 패널 */
             <div
-              className="fixed left-2 right-2 z-[1001] bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden"
+              className="fixed left-2 right-2 z-[1010] bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden"
               style={{ bottom: `${MOBILE_SHEET_HANDLE_H + 8}px` }}
             >
               <DistrictPanel
@@ -1108,6 +1113,7 @@ export default function MapPage() {
                 allSchools={schools}
                 tobaccoShops={tobaccoShops}
                 onClose={() => setSelectedSchool(null)}
+                isMobile={true}
                 {...(isAdmin ? { onEdit: handleEditSchool, onDelete: handleDeleteSchool } : {})}
               />
             </div>
