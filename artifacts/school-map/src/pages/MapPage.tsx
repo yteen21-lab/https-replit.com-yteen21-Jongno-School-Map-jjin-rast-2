@@ -21,6 +21,7 @@ import DistrictMiniMap from "@/components/DistrictMiniMap";
 const SIDEBAR_MIN = 140;
 const SIDEBAR_MAX = 400;
 const SIDEBAR_DEFAULT = 200;
+const MOBILE_SHEET_HANDLE_H = 52; // 모바일 바텀시트 핸들 영역 높이 (px)
 
 const STORAGE_KEY_SCHOOLS = "schoolMap_schools_v1";
 const STORAGE_KEY_TOBACCO = "schoolMap_tobacco_v2";
@@ -195,7 +196,7 @@ export default function MapPage() {
   const [showYuIn, setShowYuIn] = useState(true);
   const [activeZonePanel, setActiveZonePanel] = useState<null | "50m" | "200m">(null);
   const [activeSchoolType, setActiveSchoolType] = useState<SchoolType | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT);
   const [activeTab, setActiveTab] = useState<"upload" | "list">("list");
   const [savedAt, setSavedAt] = useState<string | null>(null);
@@ -209,12 +210,21 @@ export default function MapPage() {
     | null
   >(null);
   const [addSchoolMode, setAddSchoolMode] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const isResizing = useRef(false);
+  const touchStartY = useRef(0);
   /* 최신 상태를 handleSave에서 안전하게 읽기 위한 ref */
   const schoolsRef = useRef(schools);
   const tobaccoRef = useRef(tobaccoShops);
   useEffect(() => { schoolsRef.current = schools; }, [schools]);
   useEffect(() => { tobaccoRef.current = tobaccoShops; }, [tobaccoShops]);
+
+  /* 화면 크기 변경 감지 */
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
 
   /* 서버에서 공유 데이터 로드 */
   useEffect(() => {
@@ -446,26 +456,76 @@ export default function MapPage() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-100 font-korean">
-      {/* Sidebar */}
+      {/* 모바일 오버레이 배경 */}
+      {isMobile && sidebarOpen && (
+        <div
+          className="fixed inset-0 z-[19] bg-black/30 backdrop-blur-[1px]"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar — 데스크톱: 좌측 패널 / 모바일: 하단 시트 */}
       <aside
-        className="relative flex flex-col bg-white border-r border-slate-200 shadow-sm z-10"
-        style={{ width: sidebarOpen ? `${sidebarWidth}px` : "0px", minWidth: sidebarOpen ? `${sidebarWidth}px` : "0px", transition: isResizing.current ? "none" : "width 0.3s, min-width 0.3s" }}
+        className={
+          isMobile
+            ? "fixed bottom-0 left-0 right-0 z-20 bg-white rounded-t-2xl shadow-2xl flex flex-col transition-transform duration-300 ease-out"
+            : "relative flex flex-col bg-white border-r border-slate-200 shadow-sm z-10"
+        }
+        style={
+          isMobile
+            ? {
+                height: "78vh",
+                transform: sidebarOpen ? "translateY(0)" : `translateY(calc(100% - ${MOBILE_SHEET_HANDLE_H}px))`,
+              }
+            : {
+                width: sidebarOpen ? `${sidebarWidth}px` : "0px",
+                minWidth: sidebarOpen ? `${sidebarWidth}px` : "0px",
+                transition: isResizing.current ? "none" : "width 0.3s, min-width 0.3s",
+              }
+        }
+        onTouchStart={(e) => { touchStartY.current = e.touches[0].clientY; }}
+        onTouchEnd={(e) => {
+          const dy = touchStartY.current - e.changedTouches[0].clientY;
+          if (Math.abs(dy) > 40) setSidebarOpen(dy > 0);
+        }}
       >
-        {sidebarOpen && (
-          <div className="flex flex-col h-full overflow-hidden" style={{ width: `${sidebarWidth}px` }}>
-            {/* Header */}
-            <div className="px-3 py-3 border-b border-slate-100">
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <SchoolIcon className="h-4 w-4 text-green-600 flex-shrink-0" />
-                <h1 className="text-xs font-bold text-slate-800 leading-tight">학교 반경 지도</h1>
-              </div>
-              <p className="text-[9px] text-slate-400">서울시 전체 · 초중고</p>
+        {/* 모바일 핸들 바 */}
+        {isMobile && (
+          <button
+            className="flex-shrink-0 flex flex-col items-center pt-2 pb-1 w-full"
+            onClick={() => setSidebarOpen((v) => !v)}
+            aria-label="사이드바 열기/닫기"
+          >
+            <div className="w-10 h-1 bg-slate-300 rounded-full mb-1" />
+            <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+              <SchoolIcon className="w-3.5 h-3.5 text-green-600" />
+              학교 반경 지도
               {violationCount > 0 && (
-                <div className="mt-1.5 bg-red-50 border border-red-200 rounded-lg px-2 py-1">
-                  <p className="text-[9px] text-red-700 font-semibold">⚠️ 200m 이내 {violationCount}곳</p>
-                </div>
+                <span className="bg-red-50 text-red-600 border border-red-200 text-[10px] px-1.5 py-0.5 rounded-full font-semibold">
+                  ⚠ {violationCount}곳
+                </span>
               )}
             </div>
+          </button>
+        )}
+
+        {(sidebarOpen || !isMobile) && (
+          <div className="flex flex-col overflow-hidden" style={isMobile ? { flex: 1 } : { height: "100%", width: `${sidebarWidth}px` }}>
+            {/* Header — 데스크톱만 표시 (모바일은 핸들 바가 역할 대체) */}
+            {!isMobile && (
+              <div className="px-3 py-3 border-b border-slate-100">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <SchoolIcon className="h-4 w-4 text-green-600 flex-shrink-0" />
+                  <h1 className="text-xs font-bold text-slate-800 leading-tight">학교 반경 지도</h1>
+                </div>
+                <p className="text-[9px] text-slate-400">서울시 전체 · 초중고</p>
+                {violationCount > 0 && (
+                  <div className="mt-1.5 bg-red-50 border border-red-200 rounded-lg px-2 py-1">
+                    <p className="text-[9px] text-red-700 font-semibold">⚠️ 200m 이내 {violationCount}곳</p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Search Bar */}
             <div className="px-2 py-2 border-b border-slate-100">
@@ -692,45 +752,53 @@ export default function MapPage() {
               </div>
             </div>
 
-            {/* Drag-to-resize handle */}
-            <div
-              onMouseDown={() => {
-                isResizing.current = true;
-                document.body.style.cursor = "col-resize";
-                document.body.style.userSelect = "none";
-              }}
-              className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize z-30 group"
-            >
-              <div className="h-full w-full bg-transparent group-hover:bg-green-400/40 transition-colors" />
-              <div className="absolute top-1/2 -translate-y-1/2 right-0 flex flex-col gap-0.5 pr-[1px] pointer-events-none">
-                {[0,1,2].map(i => <div key={i} className="w-0.5 h-3 bg-slate-300 group-hover:bg-green-500 rounded-full transition-colors" />)}
+            {/* Drag-to-resize handle — 데스크톱만 */}
+            {!isMobile && (
+              <div
+                onMouseDown={() => {
+                  isResizing.current = true;
+                  document.body.style.cursor = "col-resize";
+                  document.body.style.userSelect = "none";
+                }}
+                className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize z-30 group"
+              >
+                <div className="h-full w-full bg-transparent group-hover:bg-green-400/40 transition-colors" />
+                <div className="absolute top-1/2 -translate-y-1/2 right-0 flex flex-col gap-0.5 pr-[1px] pointer-events-none">
+                  {[0,1,2].map(i => <div key={i} className="w-0.5 h-3 bg-slate-300 group-hover:bg-green-500 rounded-full transition-colors" />)}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
       </aside>
 
-      {/* Sidebar Toggle */}
-      <button
-        onClick={() => setSidebarOpen((v) => !v)}
-        className="absolute top-1/2 -translate-y-1/2 z-20 bg-white border border-slate-200 rounded-r-lg shadow px-1 py-3 text-slate-400 hover:text-slate-600"
-        style={{ left: sidebarOpen ? `${sidebarWidth}px` : "0px", transition: isResizing.current ? "none" : "left 0.3s" }}
-      >
-        {sidebarOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-      </button>
+      {/* Sidebar Toggle — 데스크톱만 */}
+      {!isMobile && (
+        <button
+          onClick={() => setSidebarOpen((v) => !v)}
+          className="absolute top-1/2 -translate-y-1/2 z-20 bg-white border border-slate-200 rounded-r-lg shadow px-1 py-3 text-slate-400 hover:text-slate-600"
+          style={{ left: sidebarOpen ? `${sidebarWidth}px` : "0px", transition: isResizing.current ? "none" : "left 0.3s" }}
+        >
+          {sidebarOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        </button>
+      )}
 
       {/* Map Area */}
       <main className="flex-1 relative">
         {/* Floating Search Bar */}
-        {!sidebarOpen && (
-          <div className="absolute top-4 left-4 z-[1000] w-64">
+        {/* 플로팅 검색창: 데스크톱에서 사이드바 닫혔을 때 / 모바일에서 항상 */}
+        {(!sidebarOpen || isMobile) && (
+          <div
+            className="absolute top-4 z-[1000]"
+            style={{ left: "1rem", right: isMobile ? "4.5rem" : "auto", width: isMobile ? "auto" : "16rem" }}
+          >
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="학교명, 구, 유형 검색..."
+                onChange={(e) => { setSearchQuery(e.target.value); if (isMobile) setSidebarOpen(true); }}
+                placeholder={isMobile ? "검색..." : "학교명, 구, 유형 검색..."}
                 className="w-full pl-9 pr-8 py-2.5 text-sm bg-white border border-slate-200 rounded-xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent"
               />
               {searchQuery && (
@@ -764,14 +832,17 @@ export default function MapPage() {
         {/* 지도에서 학교 추가 모드 토글 버튼 */}
         <button
           onClick={() => setAddSchoolMode((v) => !v)}
-          className={`absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold shadow-lg transition-all ${
+          style={{ bottom: isMobile ? `${MOBILE_SHEET_HANDLE_H + 10}px` : "1.5rem" }}
+          className={`absolute left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold shadow-lg transition-all ${
             addSchoolMode
               ? "bg-blue-600 text-white ring-2 ring-blue-300"
               : "bg-white text-slate-700 border border-slate-200 hover:bg-blue-50"
           }`}
         >
           <SchoolIcon size={15} />
-          {addSchoolMode ? "📍 학교 위치를 클릭하세요 (버튼 재클릭 = 해제)" : "지도에서 학교 추가"}
+          {addSchoolMode
+            ? (isMobile ? "📍 위치 클릭 (재탭 = 해제)" : "📍 학교 위치를 클릭하세요 (버튼 재클릭 = 해제)")
+            : "지도에서 학교 추가"}
         </button>
 
         {/* Legend + ZoneShopPanel overlay */}
@@ -811,17 +882,34 @@ export default function MapPage() {
             onToggleSchoolType={(type) =>
               setActiveSchoolType((prev) => prev === type ? null : type)
             }
+            defaultCollapsed={isMobile}
           />
         </div>
 
-        {/* District Info Panel (bottom-right, square) */}
+        {/* District Info Panel */}
         {selectedSchool && (
-          <DistrictPanel
-            school={selectedSchool}
-            allSchools={schools}
-            tobaccoShops={tobaccoShops}
-            onClose={() => setSelectedSchool(null)}
-          />
+          isMobile ? (
+            /* 모바일: 하단 시트 핸들 바로 위에 풀-너비 패널 */
+            <div
+              className="fixed left-2 right-2 z-[1001] bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden"
+              style={{ bottom: `${MOBILE_SHEET_HANDLE_H + 8}px` }}
+            >
+              <DistrictPanel
+                school={selectedSchool}
+                allSchools={schools}
+                tobaccoShops={tobaccoShops}
+                onClose={() => setSelectedSchool(null)}
+              />
+            </div>
+          ) : (
+            /* 데스크톱: 우하단 고정 */
+            <DistrictPanel
+              school={selectedSchool}
+              allSchools={schools}
+              tobaccoShops={tobaccoShops}
+              onClose={() => setSelectedSchool(null)}
+            />
+          )
         )}
       </main>
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, ChevronDown, ChevronUp, SlidersHorizontal } from "lucide-react";
 import { School, TobaccoShop, SCHOOL_TYPE_COLORS, TOBACCO_ZONE_COLORS, SchoolType, TobaccoZone, getTobaccoZone } from "@/types/school";
 
 interface LegendProps {
@@ -19,6 +19,7 @@ interface LegendProps {
   onToggleYuIn: () => void;
   onOpenZonePanel: (zone: "50m" | "200m") => void;
   onToggleSchoolType: (type: SchoolType) => void;
+  defaultCollapsed?: boolean;
 }
 
 interface TooltipProps {
@@ -67,7 +68,9 @@ export default function Legend({
   onToggleYuIn,
   onOpenZonePanel,
   onToggleSchoolType,
+  defaultCollapsed = false,
 }: LegendProps) {
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const schoolCounts = schools.reduce<Record<string, number>>((acc, s) => {
     acc[s.type] = (acc[s.type] || 0) + 1;
     return acc;
@@ -95,8 +98,34 @@ export default function Legend({
   const TOOLTIP_50 = `절대보호구역 (학교보건법 제5조)\n\n학교 출입문으로부터 직선거리 50m 이내 구역.\n\n청소년 유해업소의 설치가 절대적으로 금지되며, 어떠한 예외도 허용되지 않습니다.`;
   const TOOLTIP_200 = `상대보호구역 (학교보건법 제5조)\n\n학교 경계로부터 직선거리 200m 이내 구역 (절대보호구역 제외).\n\n교육감 또는 교육장의 심의를 거쳐 유해업소 설치 여부가 결정됩니다.`;
 
+  if (collapsed) {
+    return (
+      <button
+        onClick={() => setCollapsed(false)}
+        className="bg-white rounded-xl shadow-lg p-2.5 flex items-center gap-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+      >
+        <SlidersHorizontal className="w-4 h-4 text-slate-500" />
+        필터
+        <ChevronDown className="w-3 h-3 text-slate-400" />
+      </button>
+    );
+  }
+
   return (
-    <div className="bg-white rounded-xl shadow-lg p-4 space-y-4 min-w-[210px] max-h-[90vh] overflow-y-auto">
+    <div className="bg-white rounded-xl shadow-lg p-3 space-y-3 min-w-[200px] max-h-[85vh] overflow-y-auto">
+      {/* 접기 버튼 */}
+      <div className="flex items-center justify-between -mb-1">
+        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+          <SlidersHorizontal className="w-3 h-3" />필터
+        </span>
+        <button
+          onClick={() => setCollapsed(true)}
+          className="text-slate-400 hover:text-slate-600 p-0.5 rounded"
+          title="접기"
+        >
+          <ChevronUp className="w-3.5 h-3.5" />
+        </button>
+      </div>
       {/* 학교 구분 */}
       <div>
         <div className="flex items-center justify-between mb-2">
