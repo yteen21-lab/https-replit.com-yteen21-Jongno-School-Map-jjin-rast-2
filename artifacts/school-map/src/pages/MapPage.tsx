@@ -13,7 +13,7 @@ import {
   SCHOOL_TYPE_COLORS, TOBACCO_ZONE_COLORS,
   computeDistrictPolygon,
 } from "@/types/school";
-import { RefreshCw, School as SchoolIcon, ChevronLeft, ChevronRight, Search, X, Link2, Check, CloudUpload, Cloud, Pencil } from "lucide-react";
+import { RefreshCw, School as SchoolIcon, ChevronLeft, ChevronRight, Search, X, Link2, Check, CloudUpload, Cloud, Pencil, Trash2 } from "lucide-react";
 import ymcaLogo from "@assets/ymca로고_1776149746053.jpg";
 import kctcreLogo from "@assets/image_1776150010933.png";
 import DistrictMiniMap from "@/components/DistrictMiniMap";
@@ -90,9 +90,11 @@ interface DistrictPanelProps {
   allSchools: School[];
   tobaccoShops: TobaccoShop[];
   onClose: () => void;
+  onEdit: (school: School) => void;
+  onDelete: (id: string) => void;
 }
 
-function DistrictPanel({ school, allSchools, tobaccoShops, onClose }: DistrictPanelProps) {
+function DistrictPanel({ school, allSchools, tobaccoShops, onClose, onEdit, onDelete }: DistrictPanelProps) {
   const district = school.district ?? "기타";
   const distSchools = allSchools.filter((s) => s.district === district);
 
@@ -124,14 +126,42 @@ function DistrictPanel({ school, allSchools, tobaccoShops, onClose }: DistrictPa
     >
       {/* Header */}
       <div
-        className="px-3 py-2 flex items-center justify-between flex-shrink-0"
+        className="px-3 py-2 flex items-center gap-2 flex-shrink-0"
         style={{ background: "linear-gradient(135deg,#1e293b,#334155)" }}
       >
-        <div className="min-w-0">
-          <p className="text-white font-bold text-sm leading-tight">{district}</p>
-          <p className="text-slate-300 text-[10px] leading-tight truncate">{school.name}</p>
+        {/* 학교명·구 */}
+        <div className="min-w-0 flex-1">
+          <p className="text-white font-bold text-sm leading-tight truncate">{school.name}</p>
+          <p className="text-slate-300 text-[10px] leading-tight">{school.type} · {district}</p>
         </div>
-        <button onClick={onClose} className="text-slate-400 hover:text-white text-xl leading-none ml-2 flex-shrink-0">×</button>
+
+        {/* 수정 버튼 */}
+        <button
+          onClick={() => onEdit(school)}
+          title="학교 정보 수정"
+          className="flex-shrink-0 flex items-center gap-1 text-[10px] text-slate-200 hover:text-white bg-white/10 hover:bg-white/25 rounded px-1.5 py-1 transition-colors"
+        >
+          <Pencil className="w-3 h-3" />
+          수정
+        </button>
+
+        {/* 삭제 버튼 */}
+        <button
+          onClick={() => {
+            if (window.confirm(`"${school.name}"을(를) 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
+              onDelete(school.id);
+              onClose();
+            }
+          }}
+          title="학교 삭제"
+          className="flex-shrink-0 flex items-center gap-1 text-[10px] text-slate-200 hover:text-red-300 bg-white/10 hover:bg-red-500/25 rounded px-1.5 py-1 transition-colors"
+        >
+          <Trash2 className="w-3 h-3" />
+          삭제
+        </button>
+
+        {/* 닫기 */}
+        <button onClick={onClose} className="flex-shrink-0 text-slate-400 hover:text-white text-lg leading-none ml-1">×</button>
       </div>
 
       {/* Mini Map */}
@@ -899,6 +929,8 @@ export default function MapPage() {
                 allSchools={schools}
                 tobaccoShops={tobaccoShops}
                 onClose={() => setSelectedSchool(null)}
+                onEdit={handleEditSchool}
+                onDelete={handleDeleteSchool}
               />
             </div>
           ) : (
@@ -908,6 +940,8 @@ export default function MapPage() {
               allSchools={schools}
               tobaccoShops={tobaccoShops}
               onClose={() => setSelectedSchool(null)}
+              onEdit={handleEditSchool}
+              onDelete={handleDeleteSchool}
             />
           )
         )}
