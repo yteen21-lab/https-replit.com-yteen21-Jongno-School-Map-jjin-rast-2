@@ -259,12 +259,54 @@ function resolveKoreanCoords(rawA: string, rawB: string): [number, number] | nul
   return null;
 }
 
+/** 이름 정규화: 소문자 + 공백·특수문자 제거 */
+function normalizeName(n: string): string {
+  return n.trim().toLowerCase().replace(/[\s·•\-_()（）]/g, "");
+}
+
+/** 좌표 간 거리 (미터, 평면 근사 — 한반도 범위에서 충분히 정확) */
+function approxMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const dlat = (lat2 - lat1) * 111320;
+  const dlng = (lng2 - lng1) * 111320 * Math.cos(((lat1 + lat2) / 2) * (Math.PI / 180));
+  return Math.sqrt(dlat * dlat + dlng * dlng);
+}
+
 /**
- * 이름 + 좌표(소수점 4자리 ≈ ±11m) 기반 중복 키.
- * 이름이 같아도 위치가 다르면 다른 데이터로 취급.
+ * 학교 중복 여부 판정 (pool 중 하나라도 해당하면 true).
+ * ① 정규화 이름 동일 + 타입 동일          → 중복 (가장 강한 조건)
+ * ② 정규화 이름 동일 + 좌표 ≤ 80m        → 중복 (타입 불명 등 표기 차이 허용)
+ * ③ 좌표 ≤ 30m (이름 무관)               → 중복 (같은 건물/부지, 이름만 다름)
  */
-function dedupKey(name: string, lat: number, lng: number): string {
-  return `${name.trim().toLowerCase()}|${lat.toFixed(4)}|${lng.toFixed(4)}`;
+function isSchoolDup(s: School, pool: School[]): boolean {
+  const nm = normalizeName(s.name);
+  for (const e of pool) {
+    const en = normalizeName(e.name);
+    const d  = approxMeters(s.lat, s.lng, e.lat, e.lng);
+    if (nm === en && s.type === e.type) return true;
+    if (nm === en && d <= 80)           return true;
+    if (d <= 30)                        return true;
+  }
+  return false;
+}
+
+/**
+ * 담배 업소 중복 여부 판정.
+ * ① 정규화 이름 동일 + 주소 동일          → 중복
+ * ② 정규화 이름 동일 + 좌표 ≤ 30m        → 중복 (지오코딩 오차 허용)
+ * ③ 좌표 ≤ 15m (이름 무관)               → 중복 (같은 장소, 이름 표기 차이)
+ */
+function isTobaccoDup(s: TobaccoShop, pool: TobaccoShop[]): boolean {
+  const nm   = normalizeName(s.name);
+  const addr = s.address ? normalizeName(s.address) : null;
+  for (const e of pool) {
+    const en = normalizeName(e.name);
+    const d  = approxMeters(s.lat, s.lng, e.lat, e.lng);
+    const ea = e.address ? normalizeName(e.address) : null;
+    if (nm === en && addr && ea && addr === ea) return true;
+    if (nm === en && d <= 30)                   return true;
+    if (d <= 15)                                return true;
+  }
+  return false;
 }
 
 /* 카카오 SDK Geocoder로 단일 주소 변환 (브라우저 클라이언트 실행) */
@@ -435,12 +477,10 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
                   return;
                 }
 
-                const existingKeys = new Set(existingSchools.map((s) => dedupKey(s.name, s.lat, s.lng)));
-                const fileKeys = new Set<string>();
+                const filePool: School[] = [];
                 const unique = schools.filter((s) => {
-                  const k = dedupKey(s.name, s.lat, s.lng);
-                  if (existingKeys.has(k) || fileKeys.has(k)) return false;
-                  fileKeys.add(k);
+                  if (isSchoolDup(s, existingSchools) || isSchoolDup(s, filePool)) return false;
+                  filePool.push(s);
                   return true;
                 });
                 const skipped = schools.length - unique.length;
@@ -515,14 +555,13 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
             return;
           }
           /* ── 중복 제거 ──────────────────────────────────────────────
-           * 1) 파일 내 중복 (같은 키가 두 번 이상 등장하면 첫 번째만 유지)
-           * 2) 기존 데이터와의 중복 (이미 있는 항목은 건너뜀) */
-          const existingKeys = new Set(existingSchools.map((s) => dedupKey(s.name, s.lat, s.lng)));
-          const fileKeys = new Set<string>();
+           * ① 정규화 이름 동일 + 타입 동일 → 중복
+           * ② 정규화 이름 동일 + 좌표 ≤ 80m → 중복 (지오코딩 오차 허용)
+           * ③ 좌표 ≤ 30m (이름 무관) → 중복 (같은 부지) */
+          const filePool: School[] = [];
           const unique = schools.filter((s) => {
-            const k = dedupKey(s.name, s.lat, s.lng);
-            if (existingKeys.has(k) || fileKeys.has(k)) return false;
-            fileKeys.add(k);
+            if (isSchoolDup(s, existingSchools) || isSchoolDup(s, filePool)) return false;
+            filePool.push(s);
             return true;
           });
           const skipped = schools.length - unique.length;
@@ -645,12 +684,10 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
                   return;
                 }
 
-                const existingTKeys = new Set(existingTobacco.map((s) => dedupKey(s.name, s.lat, s.lng)));
-                const fileTKeys = new Set<string>();
+                const fileTPool: TobaccoShop[] = [];
                 const unique = shops.filter((s) => {
-                  const k = dedupKey(s.name, s.lat, s.lng);
-                  if (existingTKeys.has(k) || fileTKeys.has(k)) return false;
-                  fileTKeys.add(k);
+                  if (isTobaccoDup(s, existingTobacco) || isTobaccoDup(s, fileTPool)) return false;
+                  fileTPool.push(s);
                   return true;
                 });
                 const skipped = shops.length - unique.length;
@@ -714,13 +751,14 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
             );
             return;
           }
-          /* ── 중복 제거 ─────────────────────────────────────────────── */
-          const existingTKeys = new Set(existingTobacco.map((s) => dedupKey(s.name, s.lat, s.lng)));
-          const fileTKeys = new Set<string>();
+          /* ── 중복 제거 ──────────────────────────────────────────────
+           * ① 정규화 이름 동일 + 주소 동일 → 중복
+           * ② 정규화 이름 동일 + 좌표 ≤ 30m → 중복 (지오코딩 오차 허용)
+           * ③ 좌표 ≤ 15m (이름 무관) → 중복 (같은 장소) */
+          const fileTPool: TobaccoShop[] = [];
           const unique = shops.filter((s) => {
-            const k = dedupKey(s.name, s.lat, s.lng);
-            if (existingTKeys.has(k) || fileTKeys.has(k)) return false;
-            fileTKeys.add(k);
+            if (isTobaccoDup(s, existingTobacco) || isTobaccoDup(s, fileTPool)) return false;
+            fileTPool.push(s);
             return true;
           });
           const skipped = shops.length - unique.length;
