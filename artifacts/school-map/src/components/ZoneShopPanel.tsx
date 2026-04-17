@@ -63,7 +63,7 @@ export default function ZoneShopPanel({
   );
 
   return (
-    <div className={`flex flex-col ${fullWidth ? "w-full" : "w-72"} max-h-[calc(100vh-120px)] ${fullWidth ? "" : "rounded-xl shadow-2xl"} border border-white/20 overflow-hidden bg-white text-sm`}>
+    <div className={`flex flex-col overflow-hidden bg-white text-sm border border-white/20 ${fullWidth ? "w-full h-full" : "w-72 max-h-[calc(100vh-120px)] rounded-xl shadow-2xl"}`}>
       {/* Header */}
       <div className={`${cfg.headerBg} px-3 py-2.5 flex items-start justify-between gap-2 flex-shrink-0`}>
         <div className="text-white">
@@ -91,7 +91,7 @@ export default function ZoneShopPanel({
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
+      <div className="flex-1 overflow-y-auto divide-y divide-slate-100 min-h-0">
         {shopsInZone.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 text-slate-400 gap-2">
             <Store className="w-8 h-8 opacity-30" />

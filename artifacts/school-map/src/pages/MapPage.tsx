@@ -938,8 +938,8 @@ export default function MapPage() {
         {/* 모바일: ZoneShopPanel을 하단 오버레이로 표시 */}
         {isMobile && activeZonePanel && (
           <div
-            className="fixed left-0 right-0 z-[1002] rounded-t-2xl shadow-2xl overflow-hidden"
-            style={{ bottom: `${MOBILE_SHEET_HANDLE_H}px`, maxHeight: "60vh" }}
+            className="fixed left-0 right-0 z-[1002] rounded-t-2xl shadow-2xl overflow-hidden flex flex-col"
+            style={{ bottom: `${MOBILE_SHEET_HANDLE_H}px`, height: "60vh" }}
           >
             <ZoneShopPanel
               zone={activeZonePanel}
