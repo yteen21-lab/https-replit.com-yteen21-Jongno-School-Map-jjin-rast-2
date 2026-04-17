@@ -28,10 +28,42 @@ function makeStorage(): Storage {
   });
 }
 
+interface SchoolRecord { name: string; type: string; lat?: number; lng?: number; [k: string]: unknown; }
+interface TobaccoRecord { name: string; lat?: number; lng?: number; address?: string; [k: string]: unknown; }
+
 interface SharedData {
   schools: unknown[];
   tobacco: unknown[];
   savedAt: string;
+}
+
+/* ── 중복 제거 ── */
+function deduplicateSchools(schools: unknown[]): unknown[] {
+  const seen = new Set<string>();
+  return schools.filter((s) => {
+    const sc = s as SchoolRecord;
+    /* 이름 + 학교 유형으로 중복 판별 */
+    const key = `${(sc.name ?? "").trim()}|${(sc.type ?? "").trim()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function deduplicateTobacco(tobacco: unknown[]): unknown[] {
+  const seen = new Set<string>();
+  return tobacco.filter((t) => {
+    const sh = t as TobaccoRecord;
+    /* 이름 + 주소(있으면), 없으면 이름 + 위치(소수점 4자리) */
+    const lat4 = Math.round((sh.lat ?? 0) * 10000);
+    const lng4 = Math.round((sh.lng ?? 0) * 10000);
+    const key = sh.address
+      ? `${(sh.name ?? "").trim()}|${sh.address.trim()}`
+      : `${(sh.name ?? "").trim()}|${lat4}|${lng4}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 /* ── 메모리 캐시 ── */
@@ -100,19 +132,54 @@ router.post("/school-map-data", async (req, res) => {
     res.status(400).json({ error: "Invalid payload" });
     return;
   }
+  /* 저장 전 중복 제거 */
+  const cleanSchools = deduplicateSchools(body.schools);
+  const cleanTobacco = deduplicateTobacco(body.tobacco);
   const data: SharedData = {
-    schools: body.schools,
-    tobacco: body.tobacco,
+    schools: cleanSchools,
+    tobacco: cleanTobacco,
     savedAt: new Date().toISOString(),
   };
   try {
     await saveToGCS(data);
-    setCache(data); // 저장 즉시 캐시 갱신 → 다음 GET은 GCS 호출 없이 최신 데이터 반환
-    res.json({ ok: true, savedAt: data.savedAt });
+    setCache(data);
+    res.json({
+      ok: true,
+      savedAt: data.savedAt,
+      schools: cleanSchools.length,
+      tobacco: cleanTobacco.length,
+      removedSchools: body.schools.length - cleanSchools.length,
+      removedTobacco: body.tobacco.length - cleanTobacco.length,
+    });
   } catch (err) {
     console.error("GCS save error:", err);
-    clearCache(); // 저장 실패 시 캐시 무효화
+    clearCache();
     res.status(500).json({ error: "Failed to save data" });
+  }
+});
+
+/* ── 기존 데이터 즉시 중복 제거 (일회성 정리용) ── */
+router.post("/school-map-data/dedup", async (_req, res) => {
+  try {
+    const existing = await loadFromGCS();
+    if (!existing) { res.status(404).json({ error: "No data" }); return; }
+
+    const cleanSchools = deduplicateSchools(existing.schools);
+    const cleanTobacco = deduplicateTobacco(existing.tobacco);
+    const data: SharedData = { schools: cleanSchools, tobacco: cleanTobacco, savedAt: new Date().toISOString() };
+
+    await saveToGCS(data);
+    setCache(data);
+    res.json({
+      ok: true,
+      removedSchools: existing.schools.length - cleanSchools.length,
+      removedTobacco: existing.tobacco.length - cleanTobacco.length,
+      schools: cleanSchools.length,
+      tobacco: cleanTobacco.length,
+    });
+  } catch (err) {
+    console.error("Dedup error:", err);
+    res.status(500).json({ error: String(err) });
   }
 });
 
