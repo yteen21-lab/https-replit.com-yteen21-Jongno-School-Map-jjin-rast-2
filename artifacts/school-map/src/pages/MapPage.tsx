@@ -250,6 +250,10 @@ export default function MapPage() {
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [adminPwInput, setAdminPwInput] = useState("");
   const [adminError, setAdminError] = useState("");
+  /* 자동 저장 */
+  const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const dataInitialized = useRef(false);
+  const isAdminRef = useRef(isAdmin);
   const isResizing = useRef(false);
   const touchStartY = useRef(0);
   /* 최신 상태를 handleSave에서 안전하게 읽기 위한 ref */
@@ -257,6 +261,9 @@ export default function MapPage() {
   const tobaccoRef = useRef(tobaccoShops);
   useEffect(() => { schoolsRef.current = schools; }, [schools]);
   useEffect(() => { tobaccoRef.current = tobaccoShops; }, [tobaccoShops]);
+
+  /* isAdminRef 동기화 */
+  useEffect(() => { isAdminRef.current = isAdmin; }, [isAdmin]);
 
   /* 화면 크기 변경 감지 */
   useEffect(() => {
@@ -297,9 +304,55 @@ export default function MapPage() {
           }
         }
       })
-      .catch(() => { /* 서버 연결 불가 → 로컬 데이터 그대로 유지 */ });
+      .catch(() => { /* 서버 연결 불가 → 로컬 데이터 그대로 유지 */ })
+      .finally(() => {
+        /* 초기 로드 완료 — 이후 변경부터 자동 저장 허용 */
+        setTimeout(() => { dataInitialized.current = true; }, 500);
+      });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* 관리자 자동 저장 — 데이터 변경 1.5초 후 서버 push */
+  useEffect(() => {
+    if (!dataInitialized.current) return;
+    if (!isAdminRef.current) return;
+
+    setAutoSaveStatus("saving");
+    const timer = setTimeout(() => {
+      const s = schoolsRef.current;
+      const t = tobaccoRef.current;
+      /* 로컬 저장 */
+      saveToStorage(STORAGE_KEY_SCHOOLS, s);
+      saveToStorage(STORAGE_KEY_TOBACCO, t);
+
+      fetch("/api/school-map-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ schools: s, tobacco: t }),
+      })
+        .then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json() as Promise<{ ok: boolean }>;
+        })
+        .then((res) => {
+          if (res.ok) {
+            const now = new Date();
+            const timeStr = `${now.getHours().toString().padStart(2,"0")}:${now.getMinutes().toString().padStart(2,"0")}:${now.getSeconds().toString().padStart(2,"0")}`;
+            setSavedAt(timeStr);
+            setServerSynced(true);
+            setSaveError(null);
+            setAutoSaveStatus("saved");
+            setTimeout(() => setAutoSaveStatus("idle"), 3000);
+          }
+        })
+        .catch(() => {
+          setAutoSaveStatus("error");
+          setTimeout(() => setAutoSaveStatus("idle"), 5000);
+        });
+    }, 1500);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schools, tobaccoShops]);
 
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
@@ -782,7 +835,13 @@ export default function MapPage() {
                     ) : savedAt && !serverSynced ? (
                       <p className="text-blue-500 mt-1">✓ {savedAt} 로컬 저장됨</p>
                     ) : (
-                      <p className="text-slate-400 mt-1">새 파일 업로드 후 저장·공유 버튼을 누르세요</p>
+                      <p className="text-slate-400 mt-1">새 파일 업로드 후 자동 저장됩니다</p>
+                    )}
+                    {isAdmin && (
+                      <p className="mt-1 text-[8px] text-slate-400 flex items-center gap-0.5">
+                        <Cloud className="w-2 h-2" />
+                        관리자 모드: 데이터 변경 시 자동 저장됩니다
+                      </p>
                     )}
 
                     {saveError && <p className="text-red-400 mt-1">{saveError}</p>}
@@ -938,20 +997,42 @@ export default function MapPage() {
           </button>
         )}
 
-        {/* 관리자 모드 토글 버튼 (좌하단) */}
-        <button
-          onClick={() => isAdmin ? handleAdminLogout() : setShowAdminModal(true)}
+        {/* 관리자 모드 토글 버튼 + 자동 저장 상태 (좌하단) */}
+        <div
+          className="absolute left-4 z-[1000] flex items-center gap-2"
           style={{ bottom: isMobile ? `${MOBILE_SHEET_HANDLE_H + 10}px` : "1.5rem" }}
-          className={`absolute left-4 z-[1000] flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold shadow-md transition-all border ${
-            isAdmin
-              ? "bg-amber-500 text-white border-amber-600 hover:bg-amber-600"
-              : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
-          }`}
-          title={isAdmin ? "관리자 모드 해제" : "관리자 로그인"}
         >
-          {isAdmin ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-          {isAdmin ? "관리자" : "뷰어"}
-        </button>
+          <button
+            onClick={() => isAdmin ? handleAdminLogout() : setShowAdminModal(true)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold shadow-md transition-all border ${
+              isAdmin
+                ? "bg-amber-500 text-white border-amber-600 hover:bg-amber-600"
+                : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+            }`}
+            title={isAdmin ? "관리자 모드 해제" : "관리자 로그인"}
+          >
+            {isAdmin ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+            {isAdmin ? "관리자" : "뷰어"}
+          </button>
+
+          {/* 자동 저장 상태 뱃지 */}
+          {isAdmin && autoSaveStatus !== "idle" && (
+            <span className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold shadow-sm border transition-all ${
+              autoSaveStatus === "saving"
+                ? "bg-white text-slate-500 border-slate-200 animate-pulse"
+                : autoSaveStatus === "saved"
+                ? "bg-green-50 text-green-600 border-green-200"
+                : "bg-red-50 text-red-500 border-red-200"
+            }`}>
+              {autoSaveStatus === "saving" && <Cloud className="w-3 h-3" />}
+              {autoSaveStatus === "saved" && <Check className="w-3 h-3" />}
+              {autoSaveStatus === "error" && <X className="w-3 h-3" />}
+              {autoSaveStatus === "saving" && "저장 중..."}
+              {autoSaveStatus === "saved" && "자동 저장됨"}
+              {autoSaveStatus === "error" && "저장 실패"}
+            </span>
+          )}
+        </div>
 
         {/* Legend (top-right) */}
         <div className="absolute top-4 right-4 z-[1000] flex items-start gap-2">
