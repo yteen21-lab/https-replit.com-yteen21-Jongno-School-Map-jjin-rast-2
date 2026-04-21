@@ -257,11 +257,20 @@ function loadKakao(callback: () => void) {
   if (w.kakao) {
     runLoad();
   } else {
-    // 스크립트가 아직 파싱 중이면 잠시 대기
+    /* Safari에서 document.write() 대신 동적 삽입으로 카카오 스크립트가
+     * 비동기 로드되므로 윈도우에 kakao 객체가 생길 때까지 대기.
+     * 최대 15초 타임아웃 후 포기하여 무한 폴링 방지. */
+    const startedAt = Date.now();
     const timer = setInterval(() => {
       if (w.kakao) {
         clearInterval(timer);
         runLoad();
+        return;
+      }
+      if (Date.now() - startedAt > 15000) {
+        clearInterval(timer);
+        console.warn("[KakaoMap] SDK 로드 타임아웃 — 브라우저 호환성 문제일 수 있습니다.");
+        kakaoLoadCallbacks = [];
       }
     }, 50);
   }

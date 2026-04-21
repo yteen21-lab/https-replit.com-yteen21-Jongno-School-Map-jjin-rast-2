@@ -14,6 +14,24 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Safari 호환: document.write()로 <script>를 삽입하는 방식을 동적 삽입으로 교체 -->
+    <script>
+      (function () {
+        var _origWrite = document.write.bind(document);
+        document.write = function (html) {
+          // <script src="..."> 패턴을 잡아 동적 삽입으로 전환
+          var srcMatch = typeof html === "string" && html.match(/<script[^>]+src=['"]([^'"]+)['"]/i);
+          if (srcMatch) {
+            var s = document.createElement("script");
+            s.src = srcMatch[1];
+            s.async = false; // 순서 보장
+            document.head.appendChild(s);
+            return;
+          }
+          _origWrite(html);
+        };
+      })();
+    </script>
     <script src="/api/kakao-sdk"></script>
   </head>
   <body>
