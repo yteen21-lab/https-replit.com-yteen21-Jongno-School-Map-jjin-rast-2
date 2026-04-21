@@ -1,17 +1,15 @@
 /* Service Worker — Youth Protection Tobacco Retail Monitoring Map
- * Network-first 전략: 항상 최신 데이터를 우선 사용, 오프라인 시 캐시로 폴백.
+ * 전략: HTML은 항상 네트워크 우선 (Vite 해시 번들 변경 대응)
  * 카카오 지도·API 서버는 캐시하지 않음 (동적 데이터). */
 
-const CACHE_NAME = 'yp-tobacco-map-v1';
+const CACHE_NAME = 'yp-tobacco-map-v3';
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png',
 ];
 
-/* 설치: 정적 에셋 사전 캐시 */
+/* 설치: 이미지/manifest만 사전 캐시 (JS는 해시 때문에 제외) */
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
@@ -19,7 +17,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-/* 활성화: 구 버전 캐시 정리 */
+/* 활성화: 구 버전 캐시 모두 정리 */
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
@@ -29,25 +27,64 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-/* Fetch: 카카오 API 및 서버 API는 항상 네트워크 우선 */
+/* Fetch 전략 */
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  /* 카카오 API, 서버 API — 캐시 우회 */
+  /* 카카오 API, 서버 API, chrome-extension — 캐시 우회 */
   if (
     url.hostname.includes('kakao') ||
     url.hostname.includes('daum') ||
-    url.pathname.startsWith('/api/')
+    url.pathname.startsWith('/api/') ||
+    url.protocol === 'chrome-extension:'
   ) {
-    event.respondWith(fetch(event.request));
+    event.respondWith(fetch(event.request).catch(() => new Response('', { status: 503 })));
     return;
   }
 
-  /* 정적 에셋 — 캐시 우선, 없으면 네트워크 */
+  /* HTML 파일 (/, /index.html 등) — 항상 네트워크 우선 */
+  if (
+    event.request.mode === 'navigate' ||
+    url.pathname === '/' ||
+    url.pathname.endsWith('.html')
+  ) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  /* JS/CSS (Vite 해시 번들) — 캐시 우선, 없으면 네트워크 후 캐시 저장 */
+  if (
+    url.pathname.startsWith('/assets/') ||
+    url.pathname.endsWith('.js') ||
+    url.pathname.endsWith('.css')
+  ) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(event.request).then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        });
+      })
+    );
+    return;
+  }
+
+  /* 그 외 정적 에셋 — 캐시 우선 */
   event.respondWith(
     caches.match(event.request).then(
       (cached) => cached || fetch(event.request).then((response) => {
-        /* 성공적 응답이면 캐시에 저장 */
         if (response.ok && event.request.method === 'GET') {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
