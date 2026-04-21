@@ -466,25 +466,22 @@ export default function LeafletMap({
         schoolLayersRef.current.push(circle);
       });
 
-      /* ── 각 학교 마커: 실제 좌표에 개별 표시 ── */
-      group.forEach((sc) => {
+      /* ── 학교 마커 오버레이 ──────────────────────────────────────────
+       * ▸ 단일 학교 → 개별 오버레이 (실제 좌표)
+       * ▸ 클러스터  → 하나의 오버레이 (중심 좌표) 안에 전체 라벨 목록.
+       *   이렇게 해야 같은 위치에 오버레이가 겹쳐 클릭이 빗나가는 문제가 없다.
+       * ──────────────────────────────────────────────────────────── */
+      const hasSelectedInGroup = group.some(sc => sc.id === selectedSchool?.id);
+
+      if (!isCluster) {
+        /* 단일 학교 */
+        const sc = group[0];
         const isSel = sc.id === selectedSchool?.id;
         const color = SCHOOL_TYPE_COLORS[sc.type];
-        const actualPos = new kakao.maps.LatLng(sc.lat, sc.lng);
         const dotSize = isSel ? 20 : 13;
 
         const el = document.createElement("div");
         el.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;pointer-events:auto;";
-
-        /* 클러스터 소속 표시: 점선 테두리 뱃지 */
-        const clusterBadge = isCluster
-          ? `<div style="
-              position:absolute;top:-4px;right:-4px;
-              width:8px;height:8px;border-radius:50%;
-              background:#f59e0b;border:1.5px solid white;
-            "></div>`
-          : "";
-
         el.innerHTML = `
           <div style="
             background:white;border:1.5px solid ${color};border-radius:4px;
@@ -498,24 +495,16 @@ export default function LeafletMap({
               width:${dotSize}px;height:${dotSize}px;
               background:${color};border:${isSel ? 3 : 2}px solid white;border-radius:50%;
               box-shadow:0 2px 6px rgba(0,0,0,0.4);
-              ${isCluster ? `outline:1.5px dashed ${color};outline-offset:2px;` : ""}
             "></div>
-            ${clusterBadge}
           </div>`;
 
         el.addEventListener("click", (e) => {
           e.stopPropagation();
-          const labelEl = (e.target as HTMLElement).closest("[data-school-id]");
-          if (labelEl) {
-            const id = labelEl.getAttribute("data-school-id");
-            const found = group.find(s => s.id === id);
-            if (found) { onSelectSchool(found); return; }
-          }
           onSelectSchool(sc);
         });
 
         const overlay = new kakao.maps.CustomOverlay({
-          position: actualPos,
+          position: new kakao.maps.LatLng(sc.lat, sc.lng),
           content: el,
           map,
           zIndex: isSel ? 10 : 1,
@@ -523,7 +512,73 @@ export default function LeafletMap({
           yAnchor: 1,
         });
         schoolLayersRef.current.push(overlay);
-      });
+
+      } else {
+        /* 클러스터: 하나의 오버레이에 전체 라벨 목록 —————————————————
+         * 각 라벨에 data-school-id를 달아 클릭 시 정확한 학교를 선택. */
+        const sortedGroup = [...group].sort((a, b) =>
+          SCHOOL_TYPE_PRIORITY.indexOf(a.type) - SCHOOL_TYPE_PRIORITY.indexOf(b.type)
+        );
+
+        const labelsHtml = sortedGroup.map((sc) => {
+          const isSel = sc.id === selectedSchool?.id;
+          const color = SCHOOL_TYPE_COLORS[sc.type];
+          return `<div
+            data-school-id="${sc.id}"
+            style="
+              display:flex;align-items:center;gap:5px;
+              background:${isSel ? color : "white"};
+              color:${isSel ? "white" : "#1e293b"};
+              border:1.5px solid ${color};border-radius:4px;
+              padding:2px 7px;font-size:11px;
+              font-family:'Noto Sans KR',sans-serif;
+              font-weight:${isSel ? 700 : 500};white-space:nowrap;
+              box-shadow:0 1px 4px rgba(0,0,0,0.15);
+              cursor:pointer;pointer-events:auto;
+            "
+          >
+            <span style="
+              width:7px;height:7px;flex-shrink:0;border-radius:50%;
+              background:${isSel ? "white" : color};
+            "></span>
+            ${sc.name}
+          </div>`;
+        }).join("");
+
+        const el = document.createElement("div");
+        el.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:2px;pointer-events:auto;";
+        el.innerHTML = `
+          <div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;">
+            ${labelsHtml}
+          </div>
+          <div style="
+            width:13px;height:13px;background:#64748b;
+            border:2px solid white;border-radius:50%;
+            box-shadow:0 2px 6px rgba(0,0,0,0.4);
+            outline:1.5px dashed #94a3b8;outline-offset:2px;
+            flex-shrink:0;margin-top:1px;
+          "></div>`;
+
+        el.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const target = (e.target as HTMLElement).closest("[data-school-id]");
+          if (target) {
+            const id = target.getAttribute("data-school-id");
+            const found = group.find(s => s.id === id);
+            if (found) onSelectSchool(found);
+          }
+        });
+
+        const overlay = new kakao.maps.CustomOverlay({
+          position: centPos,
+          content: el,
+          map,
+          zIndex: hasSelectedInGroup ? 10 : 2,
+          xAnchor: 0.5,
+          yAnchor: 1,
+        });
+        schoolLayersRef.current.push(overlay);
+      }
     });
   }, [schools, selectedSchool, showRadius50, showRadius200]);
 
