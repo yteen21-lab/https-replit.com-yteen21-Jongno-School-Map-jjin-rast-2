@@ -220,9 +220,21 @@ function sheetToRows(sheet: XLSX.WorkSheet): {
 }
 
 /**
+ * 수도권(서울·경기·인천) 좌표 범위
+ * 위도 36.5~38.5°N · 경도 125.5~128.5°E (충분한 여유 포함)
+ */
+const SMA_LAT_MIN = 36.5, SMA_LAT_MAX = 38.5;
+const SMA_LNG_MIN = 125.5, SMA_LNG_MAX = 128.5;
+
+function isSmaCoord(lat: number, lng: number): boolean {
+  return lat >= SMA_LAT_MIN && lat <= SMA_LAT_MAX &&
+         lng >= SMA_LNG_MIN && lng <= SMA_LNG_MAX;
+}
+
+/**
  * 하나의 문자열 값에서 위도/경도 쌍을 추출.
  * 예: "37.5665,126.9780" / "37.5665 126.9780" / "37.5665/126.9780"
- * 위도(30~40) · 경도(120~135) 범위로 어느 값이 위도인지 자동 판별.
+ * 수도권 범위(위도 36.5~38.5, 경도 125.5~128.5)로 어느 값이 위도인지 자동 판별.
  */
 function extractLatLng(value: string): [number, number] | null {
   const nums = Array.from(value.matchAll(/\d+\.?\d*/g))
@@ -231,14 +243,14 @@ function extractLatLng(value: string): [number, number] | null {
 
   for (let i = 0; i < nums.length - 1; i++) {
     const a = nums[i], b = nums[i + 1];
-    if (a >= 30 && a <= 40 && b >= 120 && b <= 135) return [a, b];
-    if (b >= 30 && b <= 40 && a >= 120 && a <= 135) return [b, a];
+    if (isSmaCoord(a, b)) return [a, b];
+    if (isSmaCoord(b, a)) return [b, a];
   }
   return null;
 }
 
 /**
- * 분리된 두 좌표 값에서 한국 위도/경도 쌍을 추출.
+ * 분리된 두 좌표 값에서 수도권 위도/경도 쌍을 추출.
  * - 열이 반대로 매핑된 경우(경도↔위도) 자동 교정
  * - 값이 배수(×100, ×10000, ×100000, ×1000000)로 스케일된 경우 자동 나눗셈
  */
@@ -252,8 +264,8 @@ function resolveKoreanCoords(rawA: string, rawB: string): [number, number] | nul
   for (const sa of scales) {
     for (const sb of scales) {
       const a = a0 * sa, b = b0 * sb;
-      if (a >= 30 && a <= 40 && b >= 120 && b <= 135) return [a, b];
-      if (b >= 30 && b <= 40 && a >= 120 && a <= 135) return [b, a];
+      if (isSmaCoord(a, b)) return [a, b];
+      if (isSmaCoord(b, a)) return [b, a];
     }
   }
   return null;
@@ -500,7 +512,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
               (effectiveCoordKey
                 ? `합산 좌표 열 "${effectiveCoordKey}" 첫 값: "${sampleCoord}"`
                 : `첫 행 좌표 샘플 — ${effectiveLatKey ?? "위도"}: "${sampleA}", ${effectiveLngKey ?? "경도"}: "${sampleB}"`) +
-              "\n좌표가 한국 범위(위도 30~40, 경도 120~135)에 있는지 확인해 주세요."
+              "\n좌표가 수도권 범위(위도 36.5~38.5, 경도 125.5~128.5)에 있는지 확인해 주세요."
             );
             return;
           }
@@ -697,7 +709,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
               (effectiveCoordKey
                 ? `합산 좌표 열 "${effectiveCoordKey}" 첫 값: "${sampleCoord}"`
                 : `첫 행 좌표 샘플 — ${effectiveLatKey ?? "위도"}: "${sampleA}", ${effectiveLngKey ?? "경도"}: "${sampleB}"`) +
-              "\n좌표가 한국 범위(위도 30~40, 경도 120~135)에 있는지 확인해 주세요."
+              "\n좌표가 수도권 범위(위도 36.5~38.5, 경도 125.5~128.5)에 있는지 확인해 주세요."
             );
             return;
           }
