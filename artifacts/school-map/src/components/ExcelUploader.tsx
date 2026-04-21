@@ -527,7 +527,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
       };
       reader.readAsArrayBuffer(file);
     },
-    [onSchoolsLoaded]
+    [onSchoolsLoaded, existingSchools]
   );
 
   const processTobaccoFile = useCallback(
@@ -726,7 +726,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
       };
       reader.readAsArrayBuffer(file);
     },
-    [onTobaccoShopsLoaded, shopTypeOverride]
+    [onTobaccoShopsLoaded, shopTypeOverride, existingTobacco]
   );
 
   const handleSchoolFile = useCallback((file: File | undefined) => {

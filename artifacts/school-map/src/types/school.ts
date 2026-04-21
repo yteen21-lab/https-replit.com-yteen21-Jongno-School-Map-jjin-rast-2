@@ -170,10 +170,13 @@ export function approxMeters(lat1: number, lng1: number, lat2: number, lng2: num
 
 /**
  * 학교 중복 여부 판정.
- * ① 핵심 이름 동일 (지역 접두사·타입 표기 차이 무시)   → 중복
- * ② 정규화 이름 동일 + 타입 동일                      → 중복
+ * ① 핵심 이름 동일 + 좌표 ≤ 300m                      → 중복 (지역접두사·타입표기 차이 무시)
+ * ② 정규화 이름 동일 + 타입 동일 + 좌표 ≤ 500m        → 중복
  * ③ 정규화 이름 동일 + 좌표 ≤ 80m                     → 중복 (지오코딩 오차)
  * ④ 좌표 ≤ 30m (이름 무관)                            → 중복 (같은 부지)
+ *
+ * ※ 규칙 ①②에 좌표 조건 추가: 전국 데이터에서 동명 학교(부산OO초 vs 서울OO초)를
+ *   거리 없이 중복 처리하는 오탐을 방지합니다.
  */
 export function isSchoolDup(s: School, pool: School[]): boolean {
   const sc = schoolCoreName(s.name);
@@ -182,10 +185,10 @@ export function isSchoolDup(s: School, pool: School[]): boolean {
     const ec = schoolCoreName(e.name);
     const en = normalizeName(e.name);
     const d  = approxMeters(s.lat, s.lng, e.lat, e.lng);
-    if (sc === ec && sc.length >= 2)    return true;  // ① 핵심 이름 동일
-    if (nm === en && s.type === e.type) return true;  // ② 정규화 이름 + 타입
-    if (nm === en && d <= 80)           return true;  // ③ 정규화 이름 + 근거리
-    if (d <= 30)                        return true;  // ④ 좌표 30m 이내
+    if (sc === ec && sc.length >= 2 && d <= 300) return true;  // ① 핵심 이름 + 300m
+    if (nm === en && s.type === e.type && d <= 500) return true; // ② 정규화 이름 + 타입 + 500m
+    if (nm === en && d <= 80)           return true;             // ③ 정규화 이름 + 80m
+    if (d <= 30)                        return true;             // ④ 좌표 30m
   }
   return false;
 }
