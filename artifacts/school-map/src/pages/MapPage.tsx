@@ -575,6 +575,36 @@ export default function MapPage() {
     setSavedAt(null);
   }, []);
 
+  const handleResetSchools = useCallback(() => {
+    setSchools([]);
+    clearStorage(STORAGE_KEY_SCHOOLS);
+    setSelectedSchool(null);
+    setSearchQuery("");
+  }, []);
+
+  const handleResetTobacco = useCallback(() => {
+    setTobaccoShops([]);
+    clearStorage(STORAGE_KEY_TOBACCO);
+  }, []);
+
+  const handleDeleteLastSchoolUpload = useCallback((ids: string[]) => {
+    const idSet = new Set(ids);
+    setSchools((prev) => {
+      const next = prev.filter((s) => !idSet.has(s.id));
+      saveToStorage(STORAGE_KEY_SCHOOLS, next);
+      return next;
+    });
+  }, []);
+
+  const handleDeleteLastTobaccoUpload = useCallback((ids: string[]) => {
+    const idSet = new Set(ids);
+    setTobaccoShops((prev) => {
+      const next = prev.filter((s) => !idSet.has(s.id));
+      saveToStorage(STORAGE_KEY_TOBACCO, next);
+      return next;
+    });
+  }, []);
+
   /* 수정 패널 열기 */
   const handleEditSchool = useCallback((school: School) => {
     setEditTarget({ kind: "school", item: school });
@@ -909,32 +939,52 @@ export default function MapPage() {
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-semibold text-slate-600">현재 데이터 현황</span>
                       {isAdmin && (
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={handleSave}
-                            className="text-[9px] bg-blue-500 hover:bg-blue-600 text-white rounded px-1.5 py-0.5 font-semibold transition-colors flex items-center gap-0.5"
-                          >
-                            <CloudUpload className="w-2.5 h-2.5" />
-                            저장·공유
-                          </button>
-                          <button
-                            onClick={handleReset}
-                            className="text-[9px] text-red-400 hover:text-red-600 underline"
-                          >
-                            초기화
-                          </button>
-                        </div>
+                        <button
+                          onClick={handleSave}
+                          className="text-[9px] bg-blue-500 hover:bg-blue-600 text-white rounded px-1.5 py-0.5 font-semibold transition-colors flex items-center gap-0.5"
+                        >
+                          <CloudUpload className="w-2.5 h-2.5" />
+                          저장·공유
+                        </button>
                       )}
                     </div>
-                    <div className="text-slate-600 space-y-0.5">
-                      <p>• 학교: {schools.length > 0
-                        ? <span className="text-blue-600 font-semibold">총 {schools.length}개 등록됨</span>
-                        : <span className="text-slate-400">없음 (엑셀 업로드 필요)</span>}
-                      </p>
-                      <p>• 담배샵: {tobaccoShops.length > 0
-                        ? <span className="text-blue-600 font-semibold">총 {tobaccoShops.length}개 등록됨</span>
-                        : <span className="text-slate-400">없음</span>}
-                      </p>
+                    <div className="text-slate-600 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <p>• 학교: {schools.length > 0
+                          ? <span className="text-blue-600 font-semibold">총 {schools.length}개</span>
+                          : <span className="text-slate-400">없음</span>}
+                        </p>
+                        {isAdmin && schools.length > 0 && (
+                          <button
+                            onClick={handleResetSchools}
+                            className="text-[9px] text-red-400 hover:text-red-600 border border-red-200 hover:border-red-400 rounded px-1 py-0.5 transition-colors"
+                          >
+                            학교 전체 삭제
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <p>• 담배샵: {tobaccoShops.length > 0
+                          ? <span className="text-blue-600 font-semibold">총 {tobaccoShops.length}개</span>
+                          : <span className="text-slate-400">없음</span>}
+                        </p>
+                        {isAdmin && tobaccoShops.length > 0 && (
+                          <button
+                            onClick={handleResetTobacco}
+                            className="text-[9px] text-red-400 hover:text-red-600 border border-red-200 hover:border-red-400 rounded px-1 py-0.5 transition-colors"
+                          >
+                            담배샵 전체 삭제
+                          </button>
+                        )}
+                      </div>
+                      {isAdmin && (schools.length > 0 || tobaccoShops.length > 0) && (
+                        <button
+                          onClick={handleReset}
+                          className="w-full mt-0.5 text-[9px] text-red-500 hover:text-red-700 border border-red-200 hover:border-red-500 rounded py-0.5 transition-colors bg-red-50 hover:bg-red-100 font-semibold"
+                        >
+                          전체 초기화 (학교 + 담배샵)
+                        </button>
+                      )}
                     </div>
 
                     {/* 서버 동기화 상태 */}
@@ -980,6 +1030,8 @@ export default function MapPage() {
                     onTobaccoShopsLoaded={handleTobaccoShopsLoaded}
                     existingSchools={schools}
                     existingTobacco={tobaccoShops}
+                    onDeleteLastSchoolUpload={handleDeleteLastSchoolUpload}
+                    onDeleteLastTobaccoUpload={handleDeleteLastTobaccoUpload}
                   />
                 </div>
               )}

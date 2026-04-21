@@ -8,6 +8,8 @@ interface ExcelUploaderProps {
   onTobaccoShopsLoaded?: (shops: TobaccoShop[]) => void;
   existingSchools?: School[];
   existingTobacco?: TobaccoShop[];
+  onDeleteLastSchoolUpload?: (ids: string[]) => void;
+  onDeleteLastTobaccoUpload?: (ids: string[]) => void;
 }
 
 type UploadMode = "school" | "tobacco";
@@ -309,7 +311,7 @@ async function geocodeAddresses(
   return results;
 }
 
-export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, existingSchools = [], existingTobacco = [] }: ExcelUploaderProps) {
+export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, existingSchools = [], existingTobacco = [], onDeleteLastSchoolUpload, onDeleteLastTobaccoUpload }: ExcelUploaderProps) {
   const schoolInputRef = useRef<HTMLInputElement>(null);
   const tobaccoInputRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<UploadMode>("school");
@@ -321,6 +323,8 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
   const [tobaccoSuccess, setTobaccoSuccess] = useState<{ total: number; muIn: number; yuIn: number; skipped: number } | null>(null);
   const [shopTypeOverride, setShopTypeOverride] = useState<"auto" | "무인" | "유인">("auto");
   const [geocoding, setGeocoding] = useState<{ label: string; done: boolean } | null>(null);
+  const [lastSchoolIds, setLastSchoolIds] = useState<string[]>([]);
+  const [lastTobaccoIds, setLastTobaccoIds] = useState<string[]>([]);
 
   const processSchoolFile = useCallback(
     (file: File) => {
@@ -452,6 +456,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
                   setSchoolError(`모든 항목(${schools.length}개)이 이미 등록된 데이터와 중복입니다.`);
                   return;
                 }
+                setLastSchoolIds(unique.map(s => s.id));
                 setSchoolSuccess({ added: unique.length, skipped });
                 onSchoolsLoaded(unique);
               } catch (err) {
@@ -531,6 +536,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
             setSchoolError(`모든 행(${schools.length}개)이 이미 등록된 데이터와 중복입니다.`);
             return;
           }
+          setLastSchoolIds(unique.map(s => s.id));
           setSchoolSuccess({ added: unique.length, skipped });
           onSchoolsLoaded(unique);
         } catch (err) {
@@ -661,6 +667,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
                   setTobaccoError(`모든 항목(${shops.length}개)이 이미 등록된 데이터와 중복입니다.`);
                   return;
                 }
+                setLastTobaccoIds(unique.map(s => s.id));
                 setTobaccoSuccess({ total: unique.length, muIn, yuIn, skipped });
                 onTobaccoShopsLoaded?.(unique);
               } catch (err) {
@@ -730,6 +737,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
           }
           const muIn = unique.filter(s => s.shopType !== "유인").length;
           const yuIn = unique.filter(s => s.shopType === "유인").length;
+          setLastTobaccoIds(unique.map(s => s.id));
           setTobaccoSuccess({ total: unique.length, muIn, yuIn, skipped });
           onTobaccoShopsLoaded?.(unique);
         } catch (err) {
@@ -802,8 +810,22 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
           )}
 
           {schoolSuccess !== null && (
-            <div className="bg-green-50 border border-green-200 rounded-lg px-2 py-1.5 space-y-0.5">
-              <p className="text-[10px] text-green-700 font-semibold">✓ 학교 {schoolSuccess.added}개 추가됨</p>
+            <div className="bg-green-50 border border-green-200 rounded-lg px-2 py-1.5 space-y-1">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] text-green-700 font-semibold">✓ 학교 {schoolSuccess.added}개 추가됨</p>
+                {lastSchoolIds.length > 0 && onDeleteLastSchoolUpload && (
+                  <button
+                    onClick={() => {
+                      onDeleteLastSchoolUpload(lastSchoolIds);
+                      setLastSchoolIds([]);
+                      setSchoolSuccess(null);
+                    }}
+                    className="text-[9px] text-red-500 hover:text-red-700 border border-red-300 hover:border-red-500 rounded px-1.5 py-0.5 transition-colors bg-white"
+                  >
+                    방금 업로드 삭제
+                  </button>
+                )}
+              </div>
               {schoolSuccess.skipped > 0 && (
                 <p className="text-[10px] text-slate-500">⚠ 중복 {schoolSuccess.skipped}개 건너뜀</p>
               )}
@@ -893,8 +915,22 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
           )}
 
           {tobaccoSuccess !== null && (
-            <div className="bg-orange-50 border border-orange-200 rounded-lg px-2 py-1.5 space-y-0.5">
-              <p className="text-[10px] text-orange-700 font-semibold">✓ 업소 {tobaccoSuccess.total}개 추가됨</p>
+            <div className="bg-orange-50 border border-orange-200 rounded-lg px-2 py-1.5 space-y-1">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] text-orange-700 font-semibold">✓ 업소 {tobaccoSuccess.total}개 추가됨</p>
+                {lastTobaccoIds.length > 0 && onDeleteLastTobaccoUpload && (
+                  <button
+                    onClick={() => {
+                      onDeleteLastTobaccoUpload(lastTobaccoIds);
+                      setLastTobaccoIds([]);
+                      setTobaccoSuccess(null);
+                    }}
+                    className="text-[9px] text-red-500 hover:text-red-700 border border-red-300 hover:border-red-500 rounded px-1.5 py-0.5 transition-colors bg-white"
+                  >
+                    방금 업로드 삭제
+                  </button>
+                )}
+              </div>
               <p className="text-[10px] text-slate-500">🚬 무인 {tobaccoSuccess.muIn}개 · 🏪 유인 {tobaccoSuccess.yuIn}개</p>
               {tobaccoSuccess.skipped > 0 && (
                 <p className="text-[10px] text-slate-500">⚠ 중복 {tobaccoSuccess.skipped}개 건너뜀</p>
