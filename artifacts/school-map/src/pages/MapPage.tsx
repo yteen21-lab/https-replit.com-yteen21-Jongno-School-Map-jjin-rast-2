@@ -567,6 +567,7 @@ export default function MapPage() {
   }, []);
 
   const handleReset = useCallback(() => {
+    if (!window.confirm(`⚠️ 전체 초기화\n\n학교 데이터와 담배샵 데이터가 모두 삭제되며 서버에서도 즉시 제거됩니다.\n\n정말 삭제하시겠습니까?`)) return;
     setSchools([]);
     setTobaccoShops([]);
     clearStorage(STORAGE_KEY_SCHOOLS, STORAGE_KEY_TOBACCO);
@@ -576,6 +577,7 @@ export default function MapPage() {
   }, []);
 
   const handleResetSchools = useCallback(() => {
+    if (!window.confirm(`⚠️ 학교 전체 삭제\n\n등록된 학교 데이터가 모두 삭제되며 서버에서도 즉시 제거됩니다.\n\n정말 삭제하시겠습니까?`)) return;
     setSchools([]);
     clearStorage(STORAGE_KEY_SCHOOLS);
     setSelectedSchool(null);
@@ -583,6 +585,7 @@ export default function MapPage() {
   }, []);
 
   const handleResetTobacco = useCallback(() => {
+    if (!window.confirm(`⚠️ 담배샵 전체 삭제\n\n등록된 담배샵 데이터가 모두 삭제되며 서버에서도 즉시 제거됩니다.\n\n정말 삭제하시겠습니까?`)) return;
     setTobaccoShops([]);
     clearStorage(STORAGE_KEY_TOBACCO);
   }, []);
