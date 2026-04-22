@@ -246,28 +246,37 @@ function loadKakao(callback: () => void) {
 
   const w = window as any;
 
-  const runLoad = () => {
-    w.kakao.maps.load(() => {
+  /* kakao.maps.load() 콜백이 너무 일찍 발화하는 경우가 있어
+   * LatLng가 실제 생성자로 등록될 때까지 폴링으로 재확인. */
+  const flushWhenReady = () => {
+    if (typeof w.kakao?.maps?.LatLng === "function") {
       kakaoLoaded = true;
       kakaoLoadCallbacks.forEach((cb) => cb());
       kakaoLoadCallbacks = [];
+    } else {
+      setTimeout(flushWhenReady, 50);
+    }
+  };
+
+  const runLoad = () => {
+    w.kakao.maps.load(() => {
+      flushWhenReady();
     });
   };
 
-  if (w.kakao) {
+  if (w.kakao?.maps?.load) {
     runLoad();
   } else {
-    /* Safari에서 document.write() 대신 동적 삽입으로 카카오 스크립트가
-     * 비동기 로드되므로 윈도우에 kakao 객체가 생길 때까지 대기.
-     * 최대 15초 타임아웃 후 포기하여 무한 폴링 방지. */
+    /* kakao 객체 자체가 아직 없으면(Safari 비동기 로드 등) 대기.
+     * 최대 20초 타임아웃 후 포기하여 무한 폴링 방지. */
     const startedAt = Date.now();
     const timer = setInterval(() => {
-      if (w.kakao) {
+      if (w.kakao?.maps?.load) {
         clearInterval(timer);
         runLoad();
         return;
       }
-      if (Date.now() - startedAt > 15000) {
+      if (Date.now() - startedAt > 20000) {
         clearInterval(timer);
         console.warn("[KakaoMap] SDK 로드 타임아웃 — 브라우저 호환성 문제일 수 있습니다.");
         kakaoLoadCallbacks = [];
