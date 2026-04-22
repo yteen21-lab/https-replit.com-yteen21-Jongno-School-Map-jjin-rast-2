@@ -22,6 +22,7 @@ interface LeafletMapProps {
   isAdmin?: boolean;
   onEditTobacco?: (shop: TobaccoShop) => void;
   onDeleteTobacco?: (id: string) => void;
+  tobaccoVersion?: number;
 }
 
 const SEOUL_CENTER = { lat: 37.5665, lng: 126.9780 };
@@ -307,6 +308,7 @@ export default function LeafletMap({
   isAdmin = false,
   onEditTobacco,
   onDeleteTobacco,
+  tobaccoVersion = 0,
 }: LeafletMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -818,15 +820,8 @@ export default function LeafletMap({
         popup.querySelector("#popup-delete")?.addEventListener("click", (ev) => {
           ev.stopPropagation();
           if (!window.confirm(`"${shop.name}" 업소를 삭제하시겠습니까?`)) return;
-          popup.remove();
-          openPopupRef.current = null;
-          /* 해당 마커를 즉시 지도에서 제거 */
-          const target = tobaccoOverlayMapRef.current.get(shop.id);
-          if (target) {
-            target.setMap(null);
-            tobaccoLayersRef.current = tobaccoLayersRef.current.filter((l) => l !== target);
-            tobaccoOverlayMapRef.current.delete(shop.id);
-          }
+          /* 팝업·마커 전체를 즉시 제거 후 React 상태 업데이트 */
+          clearTobaccoLayers();
           onDeleteTobaccoRef.current?.(shop.id);
         });
 
@@ -847,7 +842,7 @@ export default function LeafletMap({
       tobaccoLayersRef.current.push(overlay);
       tobaccoOverlayMapRef.current.set(shop.id, overlay);
     });
-  }, [tobaccoShops, schools, showTobacco]);
+  }, [tobaccoShops, schools, showTobacco, tobaccoVersion]);
 
   /* ── 구 하이라이트 폴리곤 ── */
   useEffect(() => {

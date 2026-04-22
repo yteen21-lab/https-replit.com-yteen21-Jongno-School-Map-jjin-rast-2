@@ -322,6 +322,7 @@ export default function MapPage() {
   const [showTobacco, setShowTobacco] = useState(true);
   const [showMuIn, setShowMuIn] = useState(true);
   const [showYuIn, setShowYuIn] = useState(true);
+  const [tobaccoVersion, setTobaccoVersion] = useState(0);
   const [activeZonePanel, setActiveZonePanel] = useState<null | "50m" | "200m">(null);
   const [activeSchoolType, setActiveSchoolType] = useState<SchoolType | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
@@ -634,8 +635,8 @@ export default function MapPage() {
       saveToStorage(STORAGE_KEY_TOBACCO, next);
       return next;
     });
-    /* 사이드바에서 선택된 항목이 수정된 경우 최신 데이터로 갱신 */
     setSelectedTobaccoShop((prev) => prev?.id === updated.id ? updated : prev);
+    setTobaccoVersion((v) => v + 1);
   }, []);
 
   /* 삭제 */
@@ -654,8 +655,8 @@ export default function MapPage() {
       saveToStorage(STORAGE_KEY_TOBACCO, next);
       return next;
     });
-    /* 삭제된 업소가 선택 상태였다면 선택 해제 */
     setSelectedTobaccoShop((prev) => prev?.id === id ? null : prev);
+    setTobaccoVersion((v) => v + 1);
   }, []);
 
   /* 지도 클릭으로 학교 추가 → localStorage + 서버 자동 동기화 */
@@ -1184,6 +1185,7 @@ export default function MapPage() {
           isAdmin={isAdmin}
           onEditTobacco={handleEditTobaccoShop}
           onDeleteTobacco={handleDeleteTobacco}
+          tobaccoVersion={tobaccoVersion}
         />
 
         {/* 지도에서 학교/담배샵 추가 모드 토글 버튼 — 관리자만 */}
