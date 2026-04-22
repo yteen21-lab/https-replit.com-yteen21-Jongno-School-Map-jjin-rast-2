@@ -779,9 +779,16 @@ export default function LeafletMap({
         }
 
         const adminButtons = isAdminRef.current ? `
-          <div style="display:flex;gap:6px;margin-top:10px;padding-top:8px;border-top:1px solid #f1f5f9;">
+          <div id="popup-admin-btns" style="display:flex;gap:6px;margin-top:10px;padding-top:8px;border-top:1px solid #f1f5f9;">
             <button id="popup-edit" style="flex:1;background:#f8fafc;border:1.5px solid #e2e8f0;color:#475569;border-radius:7px;padding:5px 0;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">✏️ 수정</button>
             <button id="popup-delete" style="flex:1;background:#fef2f2;border:1.5px solid #fecaca;color:#dc2626;border-radius:7px;padding:5px 0;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">🗑️ 삭제</button>
+          </div>
+          <div id="popup-confirm-area" style="display:none;margin-top:10px;padding:10px;background:#fef2f2;border:1.5px solid #fecaca;border-radius:8px;">
+            <p style="font-size:11px;color:#dc2626;margin:0 0 8px;font-weight:600;">정말 삭제하시겠습니까?</p>
+            <div style="display:flex;gap:6px;">
+              <button id="popup-confirm-yes" style="flex:1;background:#dc2626;color:white;border:none;border-radius:6px;padding:6px 0;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">확인 삭제</button>
+              <button id="popup-confirm-no" style="flex:1;background:#f8fafc;border:1.5px solid #e2e8f0;color:#475569;border-radius:6px;padding:6px 0;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">취소</button>
+            </div>
           </div>` : "";
 
         const popup = document.createElement("div");
@@ -819,10 +826,24 @@ export default function LeafletMap({
 
         popup.querySelector("#popup-delete")?.addEventListener("click", (ev) => {
           ev.stopPropagation();
-          if (!window.confirm(`"${shop.name}" 업소를 삭제하시겠습니까?`)) return;
-          /* 팝업·마커 전체를 즉시 제거 후 React 상태 업데이트 */
+          const adminBtns = popup.querySelector<HTMLElement>("#popup-admin-btns");
+          const confirmArea = popup.querySelector<HTMLElement>("#popup-confirm-area");
+          if (adminBtns) adminBtns.style.display = "none";
+          if (confirmArea) confirmArea.style.display = "block";
+        });
+
+        popup.querySelector("#popup-confirm-yes")?.addEventListener("click", (ev) => {
+          ev.stopPropagation();
           clearTobaccoLayers();
           onDeleteTobaccoRef.current?.(shop.id);
+        });
+
+        popup.querySelector("#popup-confirm-no")?.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          const adminBtns = popup.querySelector<HTMLElement>("#popup-admin-btns");
+          const confirmArea = popup.querySelector<HTMLElement>("#popup-confirm-area");
+          if (confirmArea) confirmArea.style.display = "none";
+          if (adminBtns) adminBtns.style.display = "flex";
         });
 
         el.style.position = "relative";
