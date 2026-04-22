@@ -458,13 +458,9 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
                 const skipped = schools.length - unique.length;
                 setGeocoding({ label: `완료 (${unique.length}건 변환)`, done: true });
                 setTimeout(() => setGeocoding(null), 3000);
-                if (unique.length === 0) {
-                  setSchoolError(`모든 항목(${schools.length}개)이 이미 등록된 데이터와 중복입니다.`);
-                  return;
-                }
                 setLastSchoolIds(unique.map(s => s.id));
-                setSchoolSuccess({ added: unique.length, skipped });
-                onSchoolsLoaded(unique);
+                setSchoolSuccess({ added: unique.length, skipped: schools.length - unique.length });
+                if (unique.length > 0) onSchoolsLoaded(unique);
               } catch (err) {
                 setGeocoding(null);
                 setSchoolError(`주소 변환 실패: ${err instanceof Error ? err.message : String(err)}`);
@@ -538,13 +534,9 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
             return true;
           });
           const skipped = schools.length - unique.length;
-          if (unique.length === 0) {
-            setSchoolError(`모든 행(${schools.length}개)이 이미 등록된 데이터와 중복입니다.`);
-            return;
-          }
           setLastSchoolIds(unique.map(s => s.id));
           setSchoolSuccess({ added: unique.length, skipped });
-          onSchoolsLoaded(unique);
+          if (unique.length > 0) onSchoolsLoaded(unique);
         } catch (err) {
           setSchoolError(`파일 파싱 오류: ${err instanceof Error ? err.message : String(err)}`);
         }
@@ -669,13 +661,9 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
                 const yuIn = unique.filter(s => s.shopType === "유인").length;
                 setGeocoding({ label: `완료 (${unique.length}건 변환)`, done: true });
                 setTimeout(() => setGeocoding(null), 3000);
-                if (unique.length === 0) {
-                  setTobaccoError(`모든 항목(${shops.length}개)이 이미 등록된 데이터와 중복입니다.`);
-                  return;
-                }
                 setLastTobaccoIds(unique.map(s => s.id));
                 setTobaccoSuccess({ total: unique.length, muIn, yuIn, skipped });
-                onTobaccoShopsLoaded?.(unique);
+                if (unique.length > 0) onTobaccoShopsLoaded?.(unique);
               } catch (err) {
                 setGeocoding(null);
                 setTobaccoError(`주소 변환 실패: ${err instanceof Error ? err.message : String(err)}`);
@@ -737,15 +725,11 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
             return true;
           });
           const skipped = shops.length - unique.length;
-          if (unique.length === 0) {
-            setTobaccoError(`모든 행(${shops.length}개)이 이미 등록된 데이터와 중복입니다.`);
-            return;
-          }
           const muIn = unique.filter(s => s.shopType !== "유인").length;
           const yuIn = unique.filter(s => s.shopType === "유인").length;
           setLastTobaccoIds(unique.map(s => s.id));
           setTobaccoSuccess({ total: unique.length, muIn, yuIn, skipped });
-          onTobaccoShopsLoaded?.(unique);
+          if (unique.length > 0) onTobaccoShopsLoaded?.(unique);
         } catch (err) {
           setTobaccoError(`파일 파싱 오류: ${err instanceof Error ? err.message : String(err)}`);
         }
@@ -863,9 +847,17 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
           )}
 
           {schoolSuccess !== null && (
-            <div className="bg-green-50 border border-green-200 rounded-lg px-2 py-1.5 space-y-1">
+            <div className={`border rounded-lg px-2 py-1.5 space-y-1 ${
+              schoolSuccess.added > 0
+                ? "bg-green-50 border-green-200"
+                : "bg-slate-50 border-slate-200"
+            }`}>
               <div className="flex items-center justify-between">
-                <p className="text-[10px] text-green-700 font-semibold">✓ 학교 {schoolSuccess.added}개 추가됨</p>
+                {schoolSuccess.added > 0 ? (
+                  <p className="text-[10px] text-green-700 font-semibold">✓ 학교 {schoolSuccess.added}개 새로 추가됨</p>
+                ) : (
+                  <p className="text-[10px] text-slate-500 font-semibold">ℹ 새로 추가된 학교 없음 (전부 기존 데이터와 중복)</p>
+                )}
                 {lastSchoolIds.length > 0 && onDeleteLastSchoolUpload && (
                   <button
                     onClick={() => {
@@ -880,7 +872,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
                 )}
               </div>
               {schoolSuccess.skipped > 0 && (
-                <p className="text-[10px] text-slate-500">⚠ 중복 {schoolSuccess.skipped}개 건너뜀</p>
+                <p className="text-[10px] text-slate-400">↩ 중복 건너뜀 {schoolSuccess.skipped}개 — 기존 데이터 유지됨</p>
               )}
             </div>
           )}
@@ -968,9 +960,17 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
           )}
 
           {tobaccoSuccess !== null && (
-            <div className="bg-orange-50 border border-orange-200 rounded-lg px-2 py-1.5 space-y-1">
+            <div className={`border rounded-lg px-2 py-1.5 space-y-1 ${
+              tobaccoSuccess.total > 0
+                ? "bg-orange-50 border-orange-200"
+                : "bg-slate-50 border-slate-200"
+            }`}>
               <div className="flex items-center justify-between">
-                <p className="text-[10px] text-orange-700 font-semibold">✓ 업소 {tobaccoSuccess.total}개 추가됨</p>
+                {tobaccoSuccess.total > 0 ? (
+                  <p className="text-[10px] text-orange-700 font-semibold">✓ 업소 {tobaccoSuccess.total}개 새로 추가됨</p>
+                ) : (
+                  <p className="text-[10px] text-slate-500 font-semibold">ℹ 새로 추가된 업소 없음 (전부 기존 데이터와 중복)</p>
+                )}
                 {lastTobaccoIds.length > 0 && onDeleteLastTobaccoUpload && (
                   <button
                     onClick={() => {
@@ -984,9 +984,11 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
                   </button>
                 )}
               </div>
-              <p className="text-[10px] text-slate-500">🚬 무인 {tobaccoSuccess.muIn}개 · 🏪 유인 {tobaccoSuccess.yuIn}개</p>
+              {tobaccoSuccess.total > 0 && (
+                <p className="text-[10px] text-slate-500">🚬 무인 {tobaccoSuccess.muIn}개 · 🏪 유인 {tobaccoSuccess.yuIn}개</p>
+              )}
               {tobaccoSuccess.skipped > 0 && (
-                <p className="text-[10px] text-slate-500">⚠ 중복 {tobaccoSuccess.skipped}개 건너뜀</p>
+                <p className="text-[10px] text-slate-400">↩ 중복 건너뜀 {tobaccoSuccess.skipped}개 — 기존 데이터 유지됨</p>
               )}
             </div>
           )}
