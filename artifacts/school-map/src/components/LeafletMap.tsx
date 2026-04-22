@@ -325,6 +325,8 @@ export default function LeafletMap({
   const isAdminRef = useRef(isAdmin);
   const onEditTobaccoRef = useRef(onEditTobacco);
   const onDeleteTobaccoRef = useRef(onDeleteTobacco);
+  /* shop.id → overlay: 팝업에서 즉각 해당 마커 제거에 사용 */
+  const tobaccoOverlayMapRef = useRef<Map<string, KakaoLayer>>(new Map());
 
   const clearSchoolLayers = useCallback(() => {
     schoolLayersRef.current.forEach((l) => l.setMap(null));
@@ -334,6 +336,7 @@ export default function LeafletMap({
   const clearTobaccoLayers = useCallback(() => {
     tobaccoLayersRef.current.forEach((l) => l.setMap(null));
     tobaccoLayersRef.current = [];
+    tobaccoOverlayMapRef.current.clear();
     if (openPopupRef.current) {
       openPopupRef.current.remove();
       openPopupRef.current = null;
@@ -817,6 +820,13 @@ export default function LeafletMap({
           if (!window.confirm(`"${shop.name}" 업소를 삭제하시겠습니까?`)) return;
           popup.remove();
           openPopupRef.current = null;
+          /* 해당 마커를 즉시 지도에서 제거 */
+          const target = tobaccoOverlayMapRef.current.get(shop.id);
+          if (target) {
+            target.setMap(null);
+            tobaccoLayersRef.current = tobaccoLayersRef.current.filter((l) => l !== target);
+            tobaccoOverlayMapRef.current.delete(shop.id);
+          }
           onDeleteTobaccoRef.current?.(shop.id);
         });
 
@@ -835,6 +845,7 @@ export default function LeafletMap({
       });
 
       tobaccoLayersRef.current.push(overlay);
+      tobaccoOverlayMapRef.current.set(shop.id, overlay);
     });
   }, [tobaccoShops, schools, showTobacco]);
 

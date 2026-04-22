@@ -634,6 +634,8 @@ export default function MapPage() {
       saveToStorage(STORAGE_KEY_TOBACCO, next);
       return next;
     });
+    /* 사이드바에서 선택된 항목이 수정된 경우 최신 데이터로 갱신 */
+    setSelectedTobaccoShop((prev) => prev?.id === updated.id ? updated : prev);
   }, []);
 
   /* 삭제 */
@@ -652,6 +654,8 @@ export default function MapPage() {
       saveToStorage(STORAGE_KEY_TOBACCO, next);
       return next;
     });
+    /* 삭제된 업소가 선택 상태였다면 선택 해제 */
+    setSelectedTobaccoShop((prev) => prev?.id === id ? null : prev);
   }, []);
 
   /* 지도 클릭으로 학교 추가 → localStorage + 서버 자동 동기화 */
