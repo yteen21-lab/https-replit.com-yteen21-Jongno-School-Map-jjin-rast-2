@@ -17,6 +17,11 @@ interface LeafletMapProps {
   districtPolygon?: [number, number][];
   addSchoolMode?: boolean;
   onAddSchoolFromMap?: (school: Omit<School, "id">) => void;
+  addTobaccoMode?: boolean;
+  onAddTobaccoFromMap?: (shop: Omit<TobaccoShop, "id">) => void;
+  isAdmin?: boolean;
+  onEditTobacco?: (shop: TobaccoShop) => void;
+  onDeleteTobacco?: (id: string) => void;
 }
 
 const SEOUL_CENTER = { lat: 37.5665, lng: 126.9780 };
@@ -297,6 +302,11 @@ export default function LeafletMap({
   districtPolygon,
   addSchoolMode = false,
   onAddSchoolFromMap,
+  addTobaccoMode = false,
+  onAddTobaccoFromMap,
+  isAdmin = false,
+  onEditTobacco,
+  onDeleteTobacco,
 }: LeafletMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -306,9 +316,15 @@ export default function LeafletMap({
   const districtLayerRef = useRef<kakao.maps.Polygon | null>(null);
   const openPopupRef = useRef<HTMLElement | null>(null);
   const pickerRef = useRef<HTMLElement | null>(null);
+  const tobaccoPickerRef = useRef<HTMLElement | null>(null);
   const addSchoolModeRef = useRef(addSchoolMode);
   const onAddSchoolRef = useRef(onAddSchoolFromMap);
   const schoolsRef = useRef(schools);
+  const addTobaccoModeRef = useRef(addTobaccoMode);
+  const onAddTobaccoRef = useRef(onAddTobaccoFromMap);
+  const isAdminRef = useRef(isAdmin);
+  const onEditTobaccoRef = useRef(onEditTobacco);
+  const onDeleteTobaccoRef = useRef(onDeleteTobacco);
 
   const clearSchoolLayers = useCallback(() => {
     schoolLayersRef.current.forEach((l) => l.setMap(null));
@@ -328,18 +344,35 @@ export default function LeafletMap({
     if (pickerRef.current) { pickerRef.current.remove(); pickerRef.current = null; }
   }, []);
 
+  const closeTobaccoPicker = useCallback(() => {
+    if (tobaccoPickerRef.current) { tobaccoPickerRef.current.remove(); tobaccoPickerRef.current = null; }
+  }, []);
+
   /* ref 동기화 */
   useEffect(() => { addSchoolModeRef.current = addSchoolMode; }, [addSchoolMode]);
   useEffect(() => { onAddSchoolRef.current = onAddSchoolFromMap; }, [onAddSchoolFromMap]);
   useEffect(() => { schoolsRef.current = schools; }, [schools]);
+  useEffect(() => { addTobaccoModeRef.current = addTobaccoMode; }, [addTobaccoMode]);
+  useEffect(() => { onAddTobaccoRef.current = onAddTobaccoFromMap; }, [onAddTobaccoFromMap]);
+  useEffect(() => { isAdminRef.current = isAdmin; }, [isAdmin]);
+  useEffect(() => { onEditTobaccoRef.current = onEditTobacco; }, [onEditTobacco]);
+  useEffect(() => { onDeleteTobaccoRef.current = onDeleteTobacco; }, [onDeleteTobacco]);
 
   /* addSchoolMode 변경 시 커서 스타일 변경 */
   useEffect(() => {
     if (containerRef.current) {
-      containerRef.current.style.cursor = addSchoolMode ? "crosshair" : "";
+      containerRef.current.style.cursor = addSchoolMode ? "crosshair" : (addTobaccoMode ? "crosshair" : "");
     }
     if (!addSchoolMode) closePicker();
-  }, [addSchoolMode, closePicker]);
+  }, [addSchoolMode, addTobaccoMode, closePicker]);
+
+  /* addTobaccoMode 변경 시 커서 스타일 변경 */
+  useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.style.cursor = addTobaccoMode ? "crosshair" : (addSchoolMode ? "crosshair" : "");
+    }
+    if (!addTobaccoMode) closeTobaccoPicker();
+  }, [addTobaccoMode, addSchoolMode, closeTobaccoPicker]);
 
   /* ── 지도 초기화 ── */
   useEffect(() => {
@@ -355,6 +388,91 @@ export default function LeafletMap({
       });
 
       kakao.maps.event.addListener(map, "click", (mouseEvent: any) => {
+        const latlngClick: kakao.maps.LatLng = mouseEvent.latLng;
+        const latClick = latlngClick.getLat();
+        const lngClick = latlngClick.getLng();
+
+        /* 담배샵 추가 모드 */
+        if (addTobaccoModeRef.current) {
+          closeTobaccoPicker();
+          if (openPopupRef.current) { openPopupRef.current.remove(); openPopupRef.current = null; }
+
+          const picker = document.createElement("div");
+          picker.style.cssText = [
+            "position:fixed", "top:50%", "left:50%",
+            "transform:translate(-50%,-50%)",
+            "background:white", "border-radius:14px", "padding:18px 20px",
+            "min-width:280px", "max-width:360px", "width:90vw",
+            "box-shadow:0 12px 40px rgba(0,0,0,0.25)", "z-index:999999",
+            "font-family:'Noto Sans KR',sans-serif",
+          ].join(";");
+          picker.innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+              <span style="font-size:14px;font-weight:700;color:#1e293b;">🚬 담배샵 추가</span>
+              <button id="tp-close" style="background:none;border:none;cursor:pointer;font-size:18px;color:#94a3b8;line-height:1;padding:0 2px;">✕</button>
+            </div>
+            <div style="margin-bottom:10px;">
+              <label style="font-size:11px;color:#64748b;font-weight:600;display:block;margin-bottom:4px;">업소명 *</label>
+              <input id="tp-name" placeholder="예: 전담GATE 강남역점" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;outline:none;box-sizing:border-box;font-family:inherit;" />
+            </div>
+            <div style="margin-bottom:10px;">
+              <label style="font-size:11px;color:#64748b;font-weight:600;display:block;margin-bottom:6px;">업소 유형</label>
+              <div style="display:flex;gap:12px;">
+                <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;">
+                  <input type="radio" name="tp-type" value="무인" checked style="accent-color:#475569;width:14px;height:14px;" /> 🚬 무인
+                </label>
+                <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;">
+                  <input type="radio" name="tp-type" value="유인" style="accent-color:#7C3AED;width:14px;height:14px;" /> 🏪 유인
+                </label>
+              </div>
+            </div>
+            <div style="margin-bottom:14px;">
+              <label style="font-size:11px;color:#64748b;font-weight:600;display:block;margin-bottom:4px;">주소 (선택)</label>
+              <input id="tp-address" placeholder="예: 서울 강남구 강남대로 지하 396" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;outline:none;box-sizing:border-box;font-family:inherit;" />
+            </div>
+            <div id="tp-error" style="color:#ef4444;font-size:12px;margin-bottom:6px;display:none;">업소명을 입력하세요.</div>
+            <button id="tp-add" style="width:100%;background:#7C3AED;color:white;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">추가</button>
+          `;
+
+          const closePickerFn = () => {
+            picker.remove();
+            if (tobaccoPickerRef.current === picker) tobaccoPickerRef.current = null;
+          };
+
+          picker.querySelector("#tp-close")?.addEventListener("click", closePickerFn);
+
+          picker.querySelector("#tp-add")?.addEventListener("click", () => {
+            const nameEl = picker.querySelector("#tp-name") as HTMLInputElement;
+            const addrEl = picker.querySelector("#tp-address") as HTMLInputElement;
+            const errEl = picker.querySelector("#tp-error") as HTMLElement;
+            const typeEl = picker.querySelector("input[name='tp-type']:checked") as HTMLInputElement;
+            const name = nameEl.value.trim();
+            if (!name) {
+              errEl.style.display = "block";
+              nameEl.focus();
+              return;
+            }
+            const shopType = (typeEl?.value ?? "무인") as "무인" | "유인";
+            const address = addrEl.value.trim() || undefined;
+            onAddTobaccoRef.current?.({ name, lat: latClick, lng: lngClick, shopType, address });
+            closePickerFn();
+          });
+
+          /* Enter 키 지원 */
+          picker.querySelectorAll("input").forEach((inp) => {
+            inp.addEventListener("keydown", (e) => {
+              if ((e as KeyboardEvent).key === "Enter") {
+                (picker.querySelector("#tp-add") as HTMLButtonElement)?.click();
+              }
+            });
+          });
+
+          document.body.appendChild(picker);
+          tobaccoPickerRef.current = picker;
+          setTimeout(() => (picker.querySelector("#tp-name") as HTMLInputElement)?.focus(), 50);
+          return;
+        }
+
         /* 일반 모드: 선택 해제 + 팝업 닫기 */
         if (!addSchoolModeRef.current) {
           onSelectSchool(null);
@@ -364,9 +482,9 @@ export default function LeafletMap({
 
         /* 학교 추가 모드: 클릭 위치 기준 학교 검색 */
         closePicker();
-        const latlng: kakao.maps.LatLng = mouseEvent.latLng;
-        const lat = latlng.getLat();
-        const lng = latlng.getLng();
+        const lat = latClick;
+        const lng = lngClick;
+        const latlng = latlngClick;
 
         /* 피커를 body에 fixed 위치로 추가 (z-index 문제 완전 회피) */
         const picker = document.createElement("div");
@@ -435,6 +553,7 @@ export default function LeafletMap({
       clearSchoolLayers();
       clearTobaccoLayers();
       closePicker();
+      closeTobaccoPicker();
       if (districtLayerRef.current) districtLayerRef.current.setMap(null);
       mapRef.current = null;
     };
@@ -654,16 +773,22 @@ export default function LeafletMap({
           openPopupRef.current = null;
         }
 
+        const adminButtons = isAdminRef.current ? `
+          <div style="display:flex;gap:6px;margin-top:10px;padding-top:8px;border-top:1px solid #f1f5f9;">
+            <button id="popup-edit" style="flex:1;background:#f8fafc;border:1.5px solid #e2e8f0;color:#475569;border-radius:7px;padding:5px 0;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">✏️ 수정</button>
+            <button id="popup-delete" style="flex:1;background:#fef2f2;border:1.5px solid #fecaca;color:#dc2626;border-radius:7px;padding:5px 0;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">🗑️ 삭제</button>
+          </div>` : "";
+
         const popup = document.createElement("div");
         popup.style.cssText = `
           position:absolute;transform:translate(-50%,-110%);
-          background:white;border-radius:10px;padding:12px 14px;min-width:180px;
+          background:white;border-radius:10px;padding:12px 14px;min-width:200px;
           box-shadow:0 4px 16px rgba(0,0,0,0.18);
           font-family:'Noto Sans KR',sans-serif;
           border-top:4px solid ${color};z-index:100;
         `;
         popup.innerHTML = `
-          <button style="position:absolute;top:6px;right:8px;background:none;border:none;cursor:pointer;font-size:14px;color:#94a3b8;">✕</button>
+          <button id="popup-close" style="position:absolute;top:6px;right:8px;background:none;border:none;cursor:pointer;font-size:14px;color:#94a3b8;">✕</button>
           <div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#1e293b;padding-right:20px;">${shop.name}</div>
           <div style="margin-bottom:6px;">
             <span style="display:inline-block;background:${shopTypeColor};color:white;font-size:10px;font-weight:700;border-radius:4px;padding:2px 6px;">
@@ -671,12 +796,28 @@ export default function LeafletMap({
             </span>
           </div>
           ${shop.address ? `<p style="font-size:11px;color:#64748b;margin:0 0 6px;">${shop.address}</p>` : ""}
-          <p style="font-size:12px;font-weight:600;color:${color};margin:0;">${zoneLabel}</p>`;
+          <p style="font-size:12px;font-weight:600;color:${color};margin:0 0 2px;">${zoneLabel}</p>
+          ${adminButtons}`;
 
-        popup.querySelector("button")?.addEventListener("click", (ev) => {
+        popup.querySelector("#popup-close")?.addEventListener("click", (ev) => {
           ev.stopPropagation();
           popup.remove();
           openPopupRef.current = null;
+        });
+
+        popup.querySelector("#popup-edit")?.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          popup.remove();
+          openPopupRef.current = null;
+          onEditTobaccoRef.current?.(shop);
+        });
+
+        popup.querySelector("#popup-delete")?.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          if (!window.confirm(`"${shop.name}" 업소를 삭제하시겠습니까?`)) return;
+          popup.remove();
+          openPopupRef.current = null;
+          onDeleteTobaccoRef.current?.(shop.id);
         });
 
         el.style.position = "relative";

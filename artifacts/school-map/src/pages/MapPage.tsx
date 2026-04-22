@@ -338,6 +338,7 @@ export default function MapPage() {
     | null
   >(null);
   const [addSchoolMode, setAddSchoolMode] = useState(false);
+  const [addTobaccoMode, setAddTobaccoMode] = useState(false);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   /* 관리자 모드 */
   const [isAdmin, setIsAdmin] = useState(() => sessionStorage.getItem("adminMode") === "1");
@@ -671,6 +672,37 @@ export default function MapPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ schools: updatedSchools, tobacco: currentTobacco }),
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json() as Promise<{ ok: boolean; savedAt: string }>;
+      })
+      .then((res) => {
+        if (res.ok) {
+          setServerSynced(true);
+          setSaveError(null);
+          setSavedAt(new Date(res.savedAt).toLocaleTimeString("ko-KR"));
+        }
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        setSaveError(`자동 서버 저장 실패: ${msg}`);
+      });
+  }, []);
+
+  /* 지도 클릭으로 담배샵 추가 → localStorage + 서버 자동 동기화 */
+  const handleAddTobaccoFromMap = useCallback((shop: Omit<TobaccoShop, "id">) => {
+    const newShop: TobaccoShop = { ...shop, id: `map-t-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` };
+    const updatedTobacco = [...tobaccoRef.current, newShop];
+    const currentSchools = schoolsRef.current;
+
+    saveToStorage(STORAGE_KEY_TOBACCO, updatedTobacco);
+    setTobaccoShops(updatedTobacco);
+
+    fetch("/api/school-map-data", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ schools: currentSchools, tobacco: updatedTobacco }),
     })
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -1143,24 +1175,46 @@ export default function MapPage() {
           districtPolygon={districtPolygon}
           addSchoolMode={addSchoolMode}
           onAddSchoolFromMap={handleAddSchoolFromMap}
+          addTobaccoMode={addTobaccoMode}
+          onAddTobaccoFromMap={handleAddTobaccoFromMap}
+          isAdmin={isAdmin}
+          onEditTobacco={handleEditTobaccoShop}
+          onDeleteTobacco={handleDeleteTobacco}
         />
 
-        {/* 지도에서 학교 추가 모드 토글 버튼 — 관리자만 */}
+        {/* 지도에서 학교/담배샵 추가 모드 토글 버튼 — 관리자만 */}
         {isAdmin && (
-          <button
-            onClick={() => setAddSchoolMode((v) => !v)}
+          <div
+            className="absolute left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2"
             style={{ bottom: isMobile ? `${MOBILE_SHEET_HANDLE_H + 10}px` : "1.5rem" }}
-            className={`absolute left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold shadow-lg transition-all ${
-              addSchoolMode
-                ? "bg-blue-600 text-white ring-2 ring-blue-300"
-                : "bg-white text-slate-700 border border-slate-200 hover:bg-blue-50"
-            }`}
           >
-            <SchoolIcon size={15} />
-            {addSchoolMode
-              ? (isMobile ? "📍 위치 클릭 (재탭 = 해제)" : "📍 학교 위치를 클릭하세요 (버튼 재클릭 = 해제)")
-              : "지도에서 학교 추가"}
-          </button>
+            <button
+              onClick={() => { setAddSchoolMode((v) => !v); setAddTobaccoMode(false); }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold shadow-lg transition-all ${
+                addSchoolMode
+                  ? "bg-blue-600 text-white ring-2 ring-blue-300"
+                  : "bg-white text-slate-700 border border-slate-200 hover:bg-blue-50"
+              }`}
+            >
+              <SchoolIcon size={15} />
+              {addSchoolMode
+                ? (isMobile ? "📍 위치 클릭 (재탭 해제)" : "📍 학교 위치를 클릭하세요 (재클릭 해제)")
+                : "학교 추가"}
+            </button>
+            <button
+              onClick={() => { setAddTobaccoMode((v) => !v); setAddSchoolMode(false); }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold shadow-lg transition-all ${
+                addTobaccoMode
+                  ? "bg-purple-600 text-white ring-2 ring-purple-300"
+                  : "bg-white text-slate-700 border border-slate-200 hover:bg-purple-50"
+              }`}
+            >
+              🚬
+              {addTobaccoMode
+                ? (isMobile ? "📍 위치 클릭 (재탭 해제)" : "📍 담배샵 위치를 클릭하세요 (재클릭 해제)")
+                : "담배샵 추가"}
+            </button>
+          </div>
         )}
 
         {/* 관리자 모드 토글 버튼 + 자동 저장 상태 (좌하단) */}
