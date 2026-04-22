@@ -28,7 +28,7 @@ interface LeafletMapProps {
 const SEOUL_CENTER = { lat: 37.5665, lng: 126.9780 };
 const SEOUL_LEVEL = 8;
 const CLUSTER_THRESHOLD_M = 100;
-const SCHOOL_TYPE_PRIORITY = ["초등학교", "중학교", "고등학교", "기타"];
+const SCHOOL_TYPE_PRIORITY = ["유치원", "초등학교", "중학교", "고등학교", "기타"];
 
 type KakaoLayer = kakao.maps.CustomOverlay | kakao.maps.Circle | kakao.maps.Polygon | kakao.maps.Marker;
 
@@ -68,6 +68,7 @@ function groupNearbySchools(schools: School[], threshold = CLUSTER_THRESHOLD_M):
 /* ── 카카오 Places 카테고리에서 학교 구분 감지 ── */
 function detectTypeFromCategory(categoryName: string, placeName: string): SchoolType {
   const cat = categoryName + " " + placeName;
+  if (cat.includes("유치원")) return "유치원";
   if (cat.includes("초등학교") || /초$/.test(placeName) || cat.includes("초교")) return "초등학교";
   if (cat.includes("중학교") || /중$/.test(placeName)) return "중학교";
   if (cat.includes("고등학교") || /고$/.test(placeName) || cat.includes("고교")) return "고등학교";
@@ -205,7 +206,7 @@ function renderManualForm(
   closePicker: () => void,
   onAddSchoolRef: MutableRefObject<((s: Omit<School, "id">) => void) | undefined>,
 ) {
-  const typeOptions = ["초등학교", "중학교", "고등학교", "기타"]
+  const typeOptions = ["유치원", "초등학교", "중학교", "고등학교", "기타"]
     .map(t => `<option value="${t}">${t}</option>`).join("");
   picker.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">

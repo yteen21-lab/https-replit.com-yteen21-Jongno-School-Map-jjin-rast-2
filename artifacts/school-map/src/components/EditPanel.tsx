@@ -15,7 +15,7 @@ interface EditPanelProps {
   onDeleteTobacco: (id: string) => void;
 }
 
-const SCHOOL_TYPES: SchoolType[] = ["초등학교", "중학교", "고등학교", "기타"];
+const SCHOOL_TYPES: SchoolType[] = ["유치원", "초등학교", "중학교", "고등학교", "기타"];
 
 export default function EditPanel({
   target,

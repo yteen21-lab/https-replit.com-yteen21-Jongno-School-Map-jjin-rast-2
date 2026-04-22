@@ -27,7 +27,7 @@ export default function SchoolList({ schools, selectedSchool, onSelectSchool, on
     return acc;
   }, {});
 
-  const typeOrder = ["초등학교", "중학교", "고등학교", "기타"];
+  const typeOrder = ["유치원", "초등학교", "중학교", "고등학교", "기타"];
 
   return (
     <div className="space-y-3">

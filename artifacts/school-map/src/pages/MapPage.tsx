@@ -142,6 +142,7 @@ function DistrictPanel({ school, allSchools, tobaccoShops, onClose, onEdit, onDe
   });
 
   const schoolCounts: Record<string, number> = {
+    유치원:   distSchools.filter((s) => s.type === "유치원").length,
     초등학교: distSchools.filter((s) => s.type === "초등학교").length,
     중학교:   distSchools.filter((s) => s.type === "중학교").length,
     고등학교: distSchools.filter((s) => s.type === "고등학교").length,
@@ -222,8 +223,8 @@ function DistrictPanel({ school, allSchools, tobaccoShops, onClose, onEdit, onDe
             <p className="text-[10px] font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">
               {district !== "기타" ? `${district} 학교 현황` : "학교 현황"}
             </p>
-            <div className="grid grid-cols-3 gap-1.5">
-              {(["초등학교","중학교","고등학교"] as const).map((type) => (
+            <div className="grid grid-cols-4 gap-1.5">
+              {(["유치원","초등학교","중학교","고등학교"] as const).map((type) => (
                 <div key={type} className="bg-white rounded-md py-2 flex flex-col items-center shadow-sm">
                   <span className="w-3 h-3 rounded-full mb-1" style={{ backgroundColor: SCHOOL_TYPE_COLORS[type] }} />
                   <span className="text-base font-bold text-slate-800">{schoolCounts[type]}</span>
@@ -267,7 +268,7 @@ function DistrictPanel({ school, allSchools, tobaccoShops, onClose, onEdit, onDe
         <div className="flex-1 relative">
           <DistrictMiniMap schools={distSchools} tobaccoShops={distTobacco} />
           <div className="absolute top-1.5 left-1.5 z-[2000] bg-white/90 backdrop-blur-sm rounded-md px-1.5 py-1 shadow text-[8px] space-y-0.5">
-            {(["초등학교","중학교","고등학교"] as const).map((type) => (
+            {(["유치원","초등학교","중학교","고등학교"] as const).map((type) => (
               <div key={type} className="flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: SCHOOL_TYPE_COLORS[type] }} />
                 <span className="text-slate-700">{type.replace("학교","")} {schoolCounts[type]}</span>
@@ -288,8 +289,8 @@ function DistrictPanel({ school, allSchools, tobaccoShops, onClose, onEdit, onDe
       )}
 
       {/* Count bar at bottom */}
-      <div className="flex-shrink-0 border-t border-slate-100 bg-slate-50 grid grid-cols-5 divide-x divide-slate-200">
-        {(["초등학교","중학교","고등학교"] as const).map((type) => (
+      <div className="flex-shrink-0 border-t border-slate-100 bg-slate-50 grid grid-cols-6 divide-x divide-slate-200">
+        {(["유치원","초등학교","중학교","고등학교"] as const).map((type) => (
           <div key={type} className="text-center py-1.5">
             <div className="text-xs font-bold" style={{ color: SCHOOL_TYPE_COLORS[type] }}>{schoolCounts[type]}</div>
             <div className="text-[7px] text-slate-400">{type.replace("학교","")}</div>
@@ -1079,8 +1080,8 @@ export default function MapPage() {
 
             {/* Stats Footer */}
             <div className="border-t border-slate-100 px-2 py-2 bg-slate-50 flex-shrink-0">
-              <div className="grid grid-cols-3 gap-1 text-center mb-1.5">
-                {(["초등학교","중학교","고등학교"] as const).map((type) => {
+              <div className="grid grid-cols-4 gap-1 text-center mb-1.5">
+                {(["유치원","초등학교","중학교","고등학교"] as const).map((type) => {
                   const count = filteredSchools.filter((s) => s.type === type).length;
                   return (
                     <div key={type}>
