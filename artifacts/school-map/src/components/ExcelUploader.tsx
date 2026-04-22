@@ -327,6 +327,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
   const [schoolSuccess, setSchoolSuccess] = useState<{ added: number; skipped: number } | null>(null);
   const [tobaccoSuccess, setTobaccoSuccess] = useState<{ total: number; muIn: number; yuIn: number; skipped: number } | null>(null);
   const [shopTypeOverride, setShopTypeOverride] = useState<"auto" | "무인" | "유인">("auto");
+  const [schoolTypeOverride, setSchoolTypeOverride] = useState<"auto" | SchoolType>("auto");
   const [geocoding, setGeocoding] = useState<{ label: string; done: boolean } | null>(null);
   const [lastSchoolIds, setLastSchoolIds] = useState<string[]>([]);
   const [lastTobaccoIds, setLastTobaccoIds] = useState<string[]>([]);
@@ -367,7 +368,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
               candidates.some((c) => k.trim().toLowerCase().includes(c.toLowerCase()))
             );
 
-          const nameKey = findKey("학교명", "학교 명", "name", "학교", "이름", "명칭", "학교이름");
+          const nameKey = findKey("유치원명", "원명", "학교명", "학교 명", "name", "학교", "이름", "명칭", "학교이름");
 
           /* ── 좌표 열 탐지: 합산 열을 먼저 확인 ──────────────────────────
            * "위도,경도" 같은 열 이름은 "위도" / "경도" 키워드도 포함하므로
@@ -437,7 +438,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
                   return {
                     id: `excel-s${Date.now()}-${i}`,
                     name, lat: coords.lat, lng: coords.lng,
-                    type: detectSchoolType(name, typeStr, addrStr),
+                    type: schoolTypeOverride !== "auto" ? schoolTypeOverride : detectSchoolType(name, typeStr, addrStr),
                     district, propertyRadius,
                   } as School;
                 }).filter(Boolean) as School[];
@@ -506,7 +507,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
             return {
               id: `excel-s${Date.now()}-${i}`,
               name, lat, lng,
-              type: detectSchoolType(name, typeStr, addrStr),
+              type: schoolTypeOverride !== "auto" ? schoolTypeOverride : detectSchoolType(name, typeStr, addrStr),
               district,
               propertyRadius,
             } as School;
@@ -550,7 +551,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
       };
       reader.readAsArrayBuffer(file);
     },
-    [onSchoolsLoaded, existingSchools]
+    [onSchoolsLoaded, existingSchools, schoolTypeOverride]
   );
 
   const processTobaccoFile = useCallback(
@@ -789,6 +790,53 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
       {/* School Upload */}
       {mode === "school" && (
         <div className="space-y-2">
+
+          {/* 학교 구분 강제 지정 */}
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 space-y-1.5">
+            <p className="text-[10px] font-semibold text-slate-600">업로드 학교 구분 지정</p>
+            <div className="grid grid-cols-3 gap-1">
+              {([
+                { value: "auto",   label: "🔍 자동 감지",  desc: "이름·컬럼으로 판별" },
+                { value: "유치원", label: "🏫 유치원",      desc: "전체 유치원" },
+                { value: "초등학교", label: "🏫 초등학교",  desc: "전체 초등" },
+              ] as const).map(({ value, label, desc }) => (
+                <button key={value} onClick={() => setSchoolTypeOverride(value)}
+                  className={`rounded-md border py-1.5 px-1 text-center transition-all ${
+                    schoolTypeOverride === value
+                      ? value === "유치원" ? "bg-amber-100 border-amber-400 text-amber-700"
+                        : value === "초등학교" ? "bg-blue-100 border-blue-400 text-blue-700"
+                        : "bg-green-100 border-green-400 text-green-700"
+                      : "bg-white border-slate-200 text-slate-500 hover:bg-slate-100"
+                  }`}>
+                  <p className="text-[10px] font-semibold leading-tight">{label}</p>
+                  <p className="text-[9px] leading-tight mt-0.5 opacity-70">{desc}</p>
+                </button>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 gap-1">
+              {([
+                { value: "중학교",   label: "🏫 중학교",   desc: "전체 중학교" },
+                { value: "고등학교", label: "🏫 고등학교", desc: "전체 고등학교" },
+              ] as const).map(({ value, label, desc }) => (
+                <button key={value} onClick={() => setSchoolTypeOverride(value)}
+                  className={`rounded-md border py-1.5 px-1 text-center transition-all ${
+                    schoolTypeOverride === value
+                      ? value === "중학교" ? "bg-green-100 border-green-400 text-green-700"
+                        : "bg-red-100 border-red-400 text-red-700"
+                      : "bg-white border-slate-200 text-slate-500 hover:bg-slate-100"
+                  }`}>
+                  <p className="text-[10px] font-semibold leading-tight">{label}</p>
+                  <p className="text-[9px] leading-tight mt-0.5 opacity-70">{desc}</p>
+                </button>
+              ))}
+            </div>
+            {schoolTypeOverride !== "auto" && (
+              <p className="text-[9px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-1">
+                ⚠️ 파일 내 구분 컬럼 무시 — 전체 <strong>{schoolTypeOverride}</strong>으로 처리됩니다
+              </p>
+            )}
+          </div>
+
           <div
             onDragOver={(e) => { e.preventDefault(); setIsDraggingSchool(true); }}
             onDragLeave={() => setIsDraggingSchool(false)}
@@ -845,7 +893,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
 
           <div className="bg-slate-50 rounded-lg p-2 text-[10px] text-slate-500 space-y-0.5">
             <p className="font-semibold text-slate-600">컬럼 안내</p>
-            <p>• 이름: <span className="font-mono">학교명 / 이름 / name</span></p>
+            <p>• 이름: <span className="font-mono">유치원명 / 학교명 / 이름 / name</span></p>
             <p>• 위치 <span className="text-green-700 font-semibold">(택1)</span></p>
             <p className="pl-2">① 분리: <span className="font-mono">위도</span> + <span className="font-mono">경도</span> (별도 열)</p>
             <p className="pl-2">② 합산: <span className="font-mono">좌표</span> 한 열에 <span className="font-mono">37.56,126.97</span> 형식</p>
