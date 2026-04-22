@@ -278,6 +278,9 @@ function resolveKoreanCoords(rawA: string, rawB: string): [number, number] | nul
   return null;
 }
 
+/* 좌표 소수점 5자리로 제한 (약 1m 정밀도) */
+function r5(v: number): number { return Math.round(v * 1e5) / 1e5; }
+
 /* 카카오 SDK Geocoder로 단일 주소 변환 (브라우저 클라이언트 실행) */
 function geocodeOne(address: string): Promise<{ lat: number; lng: number } | null> {
   return new Promise((resolve) => {
@@ -437,7 +440,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
                   const propertyRadius = !isNaN(prRaw) && prRaw > 0 ? prRaw : undefined;
                   return {
                     id: `excel-s${Date.now()}-${i}`,
-                    name, lat: coords.lat, lng: coords.lng,
+                    name, lat: r5(coords.lat), lng: r5(coords.lng),
                     type: schoolTypeOverride !== "auto" ? schoolTypeOverride : detectSchoolType(name, typeStr, addrStr),
                     district, propertyRadius,
                   } as School;
@@ -502,7 +505,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
 
             return {
               id: `excel-s${Date.now()}-${i}`,
-              name, lat, lng,
+              name, lat: r5(lat), lng: r5(lng),
               type: schoolTypeOverride !== "auto" ? schoolTypeOverride : detectSchoolType(name, typeStr, addrStr),
               district,
               propertyRadius,
@@ -641,7 +644,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
                   const addrStr = addressKey ? String(row[addressKey] || "").trim() || undefined : undefined;
                   const rawType = shopTypeKey ? String(row[shopTypeKey] || "").trim() : "";
                   const shopType = shopTypeOverride !== "auto" ? shopTypeOverride : autoDetectShopType(name, rawType);
-                  return { id: `excel-t${Date.now()}-${i}`, name, lat: coords.lat, lng: coords.lng, address: addrStr, shopType } as TobaccoShop;
+                  return { id: `excel-t${Date.now()}-${i}`, name, lat: r5(coords.lat), lng: r5(coords.lng), address: addrStr, shopType } as TobaccoShop;
                 }).filter(Boolean) as TobaccoShop[];
 
                 if (shops.length === 0) {
@@ -697,7 +700,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
             const address  = addressKey ? String(row[addressKey] || "").trim() || undefined : undefined;
             const rawType  = shopTypeKey ? String(row[shopTypeKey] || "").trim() : "";
             const shopType = shopTypeOverride !== "auto" ? shopTypeOverride : autoDetectShopType(name, rawType);
-            return { id: `excel-t${Date.now()}-${i}`, name, lat, lng, address, shopType } as TobaccoShop;
+            return { id: `excel-t${Date.now()}-${i}`, name, lat: r5(lat), lng: r5(lng), address, shopType } as TobaccoShop;
           }).filter(Boolean) as TobaccoShop[];
 
           if (shops.length === 0) {

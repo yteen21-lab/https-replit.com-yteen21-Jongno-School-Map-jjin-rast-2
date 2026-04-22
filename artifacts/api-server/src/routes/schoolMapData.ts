@@ -28,8 +28,34 @@ function makeStorage(): Storage {
   });
 }
 
-interface SchoolRecord { name: string; type: string; lat?: number; lng?: number; [k: string]: unknown; }
-interface TobaccoRecord { name: string; lat?: number; lng?: number; address?: string; [k: string]: unknown; }
+interface SchoolRecord { id?: string; name: string; type: string; lat?: number; lng?: number; district?: string; propertyRadius?: number; [k: string]: unknown; }
+interface TobaccoRecord { id?: string; name: string; lat?: number; lng?: number; address?: string; shopType?: string; [k: string]: unknown; }
+
+/* 좌표 소수점 5자리 제한 (약 1m 정밀도 — 현재 15자리 대비 용량 2/3 감소) */
+function r5(v: number): number { return Math.round(v * 1e5) / 1e5; }
+
+/* 불필요 필드 제거 + 좌표 정밀도 압축 */
+function cleanSchool(s: unknown): unknown {
+  const sc = s as SchoolRecord;
+  const o: Record<string, unknown> = {
+    id: sc.id, name: sc.name, type: sc.type,
+    lat: r5(sc.lat ?? 0), lng: r5(sc.lng ?? 0),
+  };
+  if (sc.district)        o.district        = sc.district;
+  if (sc.propertyRadius)  o.propertyRadius  = sc.propertyRadius;
+  return o;
+}
+
+function cleanTobacco(t: unknown): unknown {
+  const sh = t as TobaccoRecord;
+  const o: Record<string, unknown> = {
+    id: sh.id, name: sh.name,
+    lat: r5(sh.lat ?? 0), lng: r5(sh.lng ?? 0),
+    shopType: sh.shopType ?? "무인",
+  };
+  if (sh.address) o.address = sh.address;
+  return o;
+}
 
 interface SharedData {
   schools: unknown[];
@@ -100,7 +126,8 @@ async function loadFromGCS(): Promise<SharedData | null> {
 async function saveToGCS(data: SharedData): Promise<void> {
   if (!BUCKET_ID) throw new Error("Object storage not configured");
   const file = makeStorage().bucket(BUCKET_ID).file(GCS_FILE);
-  await file.save(JSON.stringify(data, null, 2), {
+  /* 압축 직렬화 (pretty-print 제거) — 학교 1000개 기준 ~30% 용량 절감 */
+  await file.save(JSON.stringify(data), {
     contentType: "application/json",
     resumable: false,
   });
@@ -132,12 +159,12 @@ router.post("/school-map-data", async (req, res) => {
     res.status(400).json({ error: "Invalid payload" });
     return;
   }
-  /* 저장 전 중복 제거 */
-  const cleanSchools = deduplicateSchools(body.schools);
-  const cleanTobacco = deduplicateTobacco(body.tobacco);
+  /* 저장 전 중복 제거 → 좌표 정밀도 압축 → 빈 필드 제거 */
+  const cleanSchools = deduplicateSchools(body.schools).map(cleanSchool);
+  const cleanTobaccos = deduplicateTobacco(body.tobacco).map(cleanTobacco);
   const data: SharedData = {
     schools: cleanSchools,
-    tobacco: cleanTobacco,
+    tobacco: cleanTobaccos,
     savedAt: new Date().toISOString(),
   };
   try {
@@ -147,9 +174,9 @@ router.post("/school-map-data", async (req, res) => {
       ok: true,
       savedAt: data.savedAt,
       schools: cleanSchools.length,
-      tobacco: cleanTobacco.length,
+      tobacco: cleanTobaccos.length,
       removedSchools: body.schools.length - cleanSchools.length,
-      removedTobacco: body.tobacco.length - cleanTobacco.length,
+      removedTobacco: body.tobacco.length - cleanTobaccos.length,
     });
   } catch (err) {
     console.error("GCS save error:", err);
@@ -164,18 +191,18 @@ router.post("/school-map-data/dedup", async (_req, res) => {
     const existing = await loadFromGCS();
     if (!existing) { res.status(404).json({ error: "No data" }); return; }
 
-    const cleanSchools = deduplicateSchools(existing.schools);
-    const cleanTobacco = deduplicateTobacco(existing.tobacco);
-    const data: SharedData = { schools: cleanSchools, tobacco: cleanTobacco, savedAt: new Date().toISOString() };
+    const dedupedSchools = deduplicateSchools(existing.schools).map(cleanSchool);
+    const dedupedTobacco = deduplicateTobacco(existing.tobacco).map(cleanTobacco);
+    const data: SharedData = { schools: dedupedSchools, tobacco: dedupedTobacco, savedAt: new Date().toISOString() };
 
     await saveToGCS(data);
     setCache(data);
     res.json({
       ok: true,
-      removedSchools: existing.schools.length - cleanSchools.length,
-      removedTobacco: existing.tobacco.length - cleanTobacco.length,
-      schools: cleanSchools.length,
-      tobacco: cleanTobacco.length,
+      removedSchools: existing.schools.length - dedupedSchools.length,
+      removedTobacco: existing.tobacco.length - dedupedTobacco.length,
+      schools: dedupedSchools.length,
+      tobacco: dedupedTobacco.length,
     });
   } catch (err) {
     console.error("Dedup error:", err);

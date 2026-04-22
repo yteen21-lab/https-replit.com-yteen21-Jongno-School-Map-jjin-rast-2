@@ -27,8 +27,34 @@ interface LeafletMapProps {
 
 const SEOUL_CENTER = { lat: 37.5665, lng: 126.9780 };
 const SEOUL_LEVEL = 8;
-const CLUSTER_THRESHOLD_M = 100;
 const SCHOOL_TYPE_PRIORITY = ["유치원", "초등학교", "중학교", "고등학교", "기타"];
+
+/* 줌 레벨별 클러스터 반경 (Kakao: 1=가장 확대, 14=가장 축소) */
+function getClusterThreshold(level: number): number {
+  if (level >= 12) return 5000;
+  if (level >= 10) return 1500;
+  if (level >= 8)  return 400;
+  if (level >= 6)  return 100;
+  if (level >= 4)  return 30;
+  return 5;
+}
+
+/* 현재 지도 뷰포트 bounds (버퍼 포함) */
+function getViewportBounds(map: kakao.maps.Map, buf = 0.3) {
+  const b = map.getBounds();
+  const sw = b.getSouthWest(), ne = b.getNorthEast();
+  const dlat = (ne.getLat() - sw.getLat()) * buf;
+  const dlng = (ne.getLng() - sw.getLng()) * buf;
+  return {
+    minLat: sw.getLat() - dlat, maxLat: ne.getLat() + dlat,
+    minLng: sw.getLng() - dlng, maxLng: ne.getLng() + dlng,
+  };
+}
+
+/* 좌표가 bounds 안에 있는지 */
+function inBounds(lat: number, lng: number, b: ReturnType<typeof getViewportBounds>): boolean {
+  return lat >= b.minLat && lat <= b.maxLat && lng >= b.minLng && lng <= b.maxLng;
+}
 
 type KakaoLayer = kakao.maps.CustomOverlay | kakao.maps.Circle | kakao.maps.Polygon | kakao.maps.Marker;
 
@@ -330,6 +356,9 @@ export default function LeafletMap({
   const onDeleteTobaccoRef = useRef(onDeleteTobacco);
   /* shop.id → overlay: 팝업에서 즉각 해당 마커 제거에 사용 */
   const tobaccoOverlayMapRef = useRef<Map<string, KakaoLayer>>(new Map());
+  /* 뷰포트 컬링: 줌/드래그 이벤트에서 호출할 렌더 함수 저장 */
+  const renderSchoolLayersRef = useRef<() => void>(() => {});
+  const renderTobaccoLayersRef = useRef<() => void>(() => {});
 
   const clearSchoolLayers = useCallback(() => {
     schoolLayersRef.current.forEach((l) => l.setMap(null));
@@ -552,6 +581,16 @@ export default function LeafletMap({
       });
 
       mapRef.current = map;
+
+      /* 줌·드래그 시 뷰포트 컬링 재실행 */
+      kakao.maps.event.addListener(map, "zoom_changed", () => {
+        renderSchoolLayersRef.current();
+        renderTobaccoLayersRef.current();
+      });
+      kakao.maps.event.addListener(map, "dragend", () => {
+        renderSchoolLayersRef.current();
+        renderTobaccoLayersRef.current();
+      });
     });
 
     return () => {
@@ -565,13 +604,20 @@ export default function LeafletMap({
     };
   }, []);
 
-  /* ── 학교 마커 & 반경 원 (클러스터링) ── */
-  useEffect(() => {
+  /* ── 학교 마커 & 반경 원 (뷰포트 컬링 + 줌 반응형 클러스터링) ── */
+  renderSchoolLayersRef.current = () => {
     const map = mapRef.current;
     if (!map || !kakaoLoaded) return;
     clearSchoolLayers();
+    if (schools.length === 0) return;
 
-    const groups = groupNearbySchools(schools);
+    const level = map.getLevel();
+    const vp = getViewportBounds(map);
+    const visibleSchools = schools.filter(s => inBounds(s.lat, s.lng, vp));
+    if (visibleSchools.length === 0) return;
+
+    const threshold = getClusterThreshold(level);
+    const groups = groupNearbySchools(visibleSchools, threshold);
 
     groups.forEach((group) => {
       const isCluster = group.length > 1;
@@ -723,17 +769,22 @@ export default function LeafletMap({
         schoolLayersRef.current.push(overlay);
       }
     });
-  }, [schools, selectedSchool, showRadius50, showRadius200]);
+  };
+  useEffect(() => { renderSchoolLayersRef.current(); }, [schools, selectedSchool, showRadius50, showRadius200]);
 
-  /* ── 담배 업소 마커 ── */
-  useEffect(() => {
+  /* ── 담배 업소 마커 (뷰포트 컬링) ── */
+  renderTobaccoLayersRef.current = () => {
     const map = mapRef.current;
     if (!map || !kakaoLoaded) return;
     clearTobaccoLayers();
     if (!showTobacco) return;
 
-    tobaccoShops.forEach((shop) => {
-      const zone = getTobaccoZone(shop, schools);
+    const vp = getViewportBounds(map);
+    const visibleShops = tobaccoShops.filter(s => inBounds(s.lat, s.lng, vp));
+
+    visibleShops.forEach((shop) => {
+      /* 구역 계산은 전체 schools 기준(schoolsRef)으로 정확도 보장 */
+      const zone = getTobaccoZone(shop, schoolsRef.current);
       const color = TOBACCO_ZONE_COLORS[zone];
       const isUnmanned = shop.shopType !== "유인";
       const shopTypeLabel = isUnmanned ? "무인" : "유인";
@@ -864,7 +915,8 @@ export default function LeafletMap({
       tobaccoLayersRef.current.push(overlay);
       tobaccoOverlayMapRef.current.set(shop.id, overlay);
     });
-  }, [tobaccoShops, schools, showTobacco, tobaccoVersion]);
+  };
+  useEffect(() => { renderTobaccoLayersRef.current(); }, [tobaccoShops, schools, showTobacco, tobaccoVersion]);
 
   /* ── 구 하이라이트 폴리곤 ── */
   useEffect(() => {
