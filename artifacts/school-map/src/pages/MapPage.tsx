@@ -325,7 +325,9 @@ export default function MapPage() {
   const [showYuIn, setShowYuIn] = useState(true);
   const [tobaccoVersion, setTobaccoVersion] = useState(0);
   const [activeZonePanel, setActiveZonePanel] = useState<null | "50m" | "200m">(null);
-  const [activeSchoolType, setActiveSchoolType] = useState<SchoolType | null>(null);
+  const [visibleSchoolTypes, setVisibleSchoolTypes] = useState<Set<SchoolType>>(
+    () => new Set<SchoolType>(["유치원", "초등학교", "중학교", "고등학교", "기타"])
+  );
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT);
   const [activeTab, setActiveTab] = useState<"upload" | "list">("list");
@@ -483,8 +485,7 @@ export default function MapPage() {
   }, [searchQuery]);
 
   const filteredSchools = useMemo(() => {
-    let result = schools;
-    if (activeSchoolType) result = result.filter((s) => s.type === activeSchoolType);
+    let result = schools.filter((s) => visibleSchoolTypes.has(s.type));
     if (searchTokens.length === 0) return result;
 
     const scored = result
@@ -493,7 +494,7 @@ export default function MapPage() {
 
     scored.sort((a, b) => b.score - a.score);
     return scored.map(({ s }) => s);
-  }, [schools, searchTokens, activeSchoolType]);
+  }, [schools, searchTokens, visibleSchoolTypes]);
 
   const filteredTobaccoShops = useMemo(() => {
     if (searchTokens.length === 0) return [];
@@ -1286,7 +1287,7 @@ export default function MapPage() {
             showMuIn={showMuIn}
             showYuIn={showYuIn}
             activeZonePanel={activeZonePanel}
-            activeSchoolType={activeSchoolType}
+            visibleSchoolTypes={visibleSchoolTypes}
             onToggleRadius50={() => setShowRadius50((v) => !v)}
             onToggleRadius200={() => setShowRadius200((v) => !v)}
             onToggleTobacco={() => setShowTobacco((v) => !v)}
@@ -1296,7 +1297,11 @@ export default function MapPage() {
               setActiveZonePanel((prev) => prev === zone ? null : zone)
             }
             onToggleSchoolType={(type) =>
-              setActiveSchoolType((prev) => prev === type ? null : type)
+              setVisibleSchoolTypes((prev) => {
+                const next = new Set(prev);
+                if (next.has(type)) next.delete(type); else next.add(type);
+                return next;
+              })
             }
             defaultCollapsed={isMobile}
           />

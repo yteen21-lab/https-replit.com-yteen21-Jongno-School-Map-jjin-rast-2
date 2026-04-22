@@ -11,7 +11,7 @@ interface LegendProps {
   showMuIn: boolean;
   showYuIn: boolean;
   activeZonePanel: "50m" | "200m" | null;
-  activeSchoolType: SchoolType | null;
+  visibleSchoolTypes: Set<SchoolType>;
   onToggleRadius50: () => void;
   onToggleRadius200: () => void;
   onToggleTobacco: () => void;
@@ -60,7 +60,7 @@ export default function Legend({
   showMuIn,
   showYuIn,
   activeZonePanel,
-  activeSchoolType,
+  visibleSchoolTypes,
   onToggleRadius50,
   onToggleRadius200,
   onToggleTobacco,
@@ -130,47 +130,41 @@ export default function Legend({
       <div>
         <div className="flex items-center justify-between mb-2">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">학교 구분</p>
-          {activeSchoolType && (
+          {visibleSchoolTypes.size < schoolTypes.length && (
             <button
-              onClick={() => onToggleSchoolType(activeSchoolType)}
+              onClick={() => schoolTypes.forEach(([t]) => { if (!visibleSchoolTypes.has(t)) onToggleSchoolType(t); })}
               className="text-[10px] text-slate-400 hover:text-slate-600 underline"
             >
-              전체 보기
+              전체 켜기
             </button>
           )}
         </div>
         <ul className="space-y-1">
           {schoolTypes.map(([type, color]) => {
-            const count = schoolCounts[type] || 0;
-            if (count === 0) return null;
-            const isActive = activeSchoolType === type;
-            const isDimmed = activeSchoolType !== null && !isActive;
+            const totalCount = schoolCounts[type] || 0;
+            if (totalCount === 0) return null;
+            const isOn = visibleSchoolTypes.has(type);
             return (
               <li key={type}>
                 <button
                   onClick={() => onToggleSchoolType(type)}
-                  className={`flex items-center gap-2 text-sm w-full rounded-md px-2 py-1 transition-all text-left
-                    ${isActive
-                      ? "bg-slate-100 ring-1 ring-slate-300 font-semibold"
-                      : isDimmed
-                        ? "opacity-40 hover:opacity-70"
-                        : "hover:bg-slate-50"
-                    }`}
+                  className={`flex items-center gap-2 text-sm w-full rounded-md px-2 py-1.5 border transition-all text-left ${
+                    isOn
+                      ? "border-slate-200 hover:bg-slate-50"
+                      : "border-dashed border-slate-200 opacity-50 hover:opacity-70"
+                  }`}
                 >
                   <span
-                    className="inline-block w-3 h-3 rounded-full flex-shrink-0 transition-all"
-                    style={{
-                      backgroundColor: color,
-                      boxShadow: isActive ? `0 0 0 2px white, 0 0 0 3px ${color}` : "none",
-                    }}
+                    className="inline-block w-3.5 h-3.5 rounded-full flex-shrink-0 border-2 border-white shadow-sm transition-all"
+                    style={{ backgroundColor: isOn ? color : "#cbd5e1" }}
                   />
-                  <span className={isDimmed ? "text-slate-400" : "text-slate-700"}>{type}</span>
-                  <span className={`ml-auto text-xs font-mono ${isDimmed ? "text-slate-300" : "text-slate-400"}`}>
-                    {count}
+                  <span className={isOn ? "text-slate-700" : "text-slate-400"}>{type}</span>
+                  <span className={`ml-auto text-xs font-mono ${isOn ? "text-slate-400" : "text-slate-300"}`}>
+                    {totalCount}
                   </span>
-                  {isActive && (
-                    <span className="text-[10px] font-bold text-slate-500 ml-1">✓</span>
-                  )}
+                  <span className={`text-[10px] font-semibold ml-1 ${isOn ? "text-slate-500" : "text-slate-300"}`}>
+                    {isOn ? "ON" : "OFF"}
+                  </span>
                 </button>
               </li>
             );
