@@ -572,6 +572,7 @@ export default function MapPage() {
         setAdminToken(data.token);
         setShowAdminModal(false);
         setAdminPwInput("");
+        setSearchQuery("");
       } else {
         setAdminError(data.error ?? "코드가 올바르지 않습니다.");
       }
