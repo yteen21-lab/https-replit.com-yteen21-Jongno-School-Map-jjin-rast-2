@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { Storage } from "@google-cloud/storage";
+import { getAdminName, extractBearerToken, appendChangelog } from "./adminAuth";
 
 const router: IRouter = Router();
 
@@ -153,20 +154,37 @@ router.get("/school-map-data", async (_req, res) => {
   res.json(data);
 });
 
+/* ID 기반 diff 계산 */
+function diffItems(
+  prev: unknown[], next: unknown[]
+): { added: string[]; removed: string[] } {
+  type Item = { id?: string; name?: string };
+  const prevMap = new Map((prev as Item[]).map(x => [x.id ?? "", x.name ?? ""]));
+  const nextMap = new Map((next as Item[]).map(x => [x.id ?? "", x.name ?? ""]));
+  const added   = (next as Item[]).filter(x => x.id && !prevMap.has(x.id)).map(x => x.name ?? x.id ?? "");
+  const removed = (prev as Item[]).filter(x => x.id && !nextMap.has(x.id)).map(x => x.name ?? x.id ?? "");
+  return { added, removed };
+}
+
 router.post("/school-map-data", async (req, res) => {
   const body = req.body as Partial<SharedData>;
   if (!Array.isArray(body.schools) || !Array.isArray(body.tobacco)) {
     res.status(400).json({ error: "Invalid payload" });
     return;
   }
+
   /* 저장 전 중복 제거 → 좌표 정밀도 압축 → 빈 필드 제거 */
-  const cleanSchools = deduplicateSchools(body.schools).map(cleanSchool);
+  const cleanSchools  = deduplicateSchools(body.schools).map(cleanSchool);
   const cleanTobaccos = deduplicateTobacco(body.tobacco).map(cleanTobacco);
   const data: SharedData = {
-    schools: cleanSchools,
-    tobacco: cleanTobaccos,
-    savedAt: new Date().toISOString(),
+    schools:  cleanSchools,
+    tobacco:  cleanTobaccos,
+    savedAt:  new Date().toISOString(),
   };
+
+  /* 변경 이력 diff 계산 (저장 전 이전 데이터 읽기) */
+  const prevData = getCached() ?? await loadFromGCS();
+
   try {
     await saveToGCS(data);
     setCache(data);
@@ -182,7 +200,15 @@ router.post("/school-map-data", async (req, res) => {
     console.error("GCS save error:", err);
     clearCache();
     res.status(500).json({ error: "Failed to save data" });
+    return;
   }
+
+  /* 비동기 changelog 기록 (응답 이후 실행 — 실패해도 저장에 영향 없음) */
+  const adminName = getAdminName(extractBearerToken(req)) ?? "자동 동기화";
+  const { added: schoolsAdded,   removed: schoolsRemoved }  = diffItems(prevData?.schools  ?? [], cleanSchools);
+  const { added: tobaccoAdded,   removed: tobaccoRemoved  } = diffItems(prevData?.tobacco  ?? [], cleanTobaccos);
+  appendChangelog({ at: data.savedAt, adminName, schoolsAdded, schoolsRemoved, tobaccoAdded, tobaccoRemoved })
+    .catch(e => console.warn("changelog append failed:", e));
 });
 
 /* ── 기존 데이터 즉시 중복 제거 (일회성 정리용) ── */

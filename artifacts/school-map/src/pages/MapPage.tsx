@@ -14,10 +14,11 @@ import {
   computeDistrictPolygon,
   isSchoolDup, isTobaccoDup,
 } from "@/types/school";
-import { RefreshCw, School as SchoolIcon, ChevronLeft, ChevronRight, Search, X, Link2, Check, CloudUpload, Cloud, Pencil, Trash2, Lock, Unlock, Eye } from "lucide-react";
+import { RefreshCw, School as SchoolIcon, ChevronLeft, ChevronRight, Search, X, Link2, Check, CloudUpload, Cloud, Pencil, Trash2, Lock, Unlock, Eye, History } from "lucide-react";
 import ymcaLogo from "@assets/ymca로고_1776149746053.jpg";
 import kctcreLogo from "@assets/image_1776150010933.png";
 import DistrictMiniMap from "@/components/DistrictMiniMap";
+import ChangelogModal from "@/components/ChangelogModal";
 
 const SIDEBAR_MIN = 140;
 const SIDEBAR_MAX = 400;
@@ -346,9 +347,12 @@ export default function MapPage() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   /* 관리자 모드 */
   const [isAdmin, setIsAdmin] = useState(() => sessionStorage.getItem("adminMode") === "1");
+  const [adminName, setAdminName] = useState(() => sessionStorage.getItem("adminName") ?? "");
+  const [adminToken, setAdminToken] = useState(() => sessionStorage.getItem("adminToken") ?? "");
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [adminPwInput, setAdminPwInput] = useState("");
   const [adminError, setAdminError] = useState("");
+  const [showChangelog, setShowChangelog] = useState(false);
   /* 자동 저장 */
   const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const dataInitialized = useRef(false);
@@ -435,9 +439,10 @@ export default function MapPage() {
       saveToStorage(STORAGE_KEY_SCHOOLS, s);
       saveToStorage(STORAGE_KEY_TOBACCO, t);
 
+      const _tok = sessionStorage.getItem("adminToken");
       fetch("/api/school-map-data", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(_tok ? { Authorization: `Bearer ${_tok}` } : {}) },
         body: JSON.stringify({ schools: s, tobacco: t }),
       })
         .then((r) => {
@@ -543,22 +548,32 @@ export default function MapPage() {
     });
   }, []);
 
+  /* 관리자 토큰을 Authorization 헤더로 반환 */
+  function getAuthHeaders(): Record<string, string> {
+    const tok = sessionStorage.getItem("adminToken");
+    return tok ? { "Content-Type": "application/json", Authorization: `Bearer ${tok}` } : { "Content-Type": "application/json" };
+  }
+
   const handleAdminLogin = useCallback(async () => {
     setAdminError("");
     try {
-      const res = await fetch("/api/admin-verify", {
+      const res = await fetch("/api/admin-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: adminPwInput }),
+        body: JSON.stringify({ code: adminPwInput }),
       });
-      if (res.ok) {
+      const data = await res.json() as { ok: boolean; adminName?: string; token?: string; error?: string };
+      if (res.ok && data.ok && data.token) {
         sessionStorage.setItem("adminMode", "1");
+        sessionStorage.setItem("adminName", data.adminName ?? "관리자");
+        sessionStorage.setItem("adminToken", data.token);
         setIsAdmin(true);
+        setAdminName(data.adminName ?? "관리자");
+        setAdminToken(data.token);
         setShowAdminModal(false);
         setAdminPwInput("");
       } else {
-        const data = await res.json() as { error?: string };
-        setAdminError(data.error ?? "비밀번호가 올바르지 않습니다.");
+        setAdminError(data.error ?? "코드가 올바르지 않습니다.");
       }
     } catch {
       setAdminError("서버 연결에 실패했습니다.");
@@ -566,8 +581,19 @@ export default function MapPage() {
   }, [adminPwInput]);
 
   const handleAdminLogout = useCallback(() => {
+    const token = sessionStorage.getItem("adminToken");
+    if (token) {
+      fetch("/api/admin-logout", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {});
+    }
     sessionStorage.removeItem("adminMode");
+    sessionStorage.removeItem("adminName");
+    sessionStorage.removeItem("adminToken");
     setIsAdmin(false);
+    setAdminName("");
+    setAdminToken("");
   }, []);
 
   const handleReset = useCallback(() => {
@@ -677,7 +703,7 @@ export default function MapPage() {
     /* 2. 서버에도 즉시 저장 → 공유 URL에 반영 */
     fetch("/api/school-map-data", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ schools: updatedSchools, tobacco: currentTobacco }),
     })
       .then((r) => {
@@ -708,7 +734,7 @@ export default function MapPage() {
 
     fetch("/api/school-map-data", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ schools: currentSchools, tobacco: updatedTobacco }),
     })
       .then((r) => {
@@ -744,7 +770,7 @@ export default function MapPage() {
     /* 2. 서버 저장 → 공유 가능 */
     fetch("/api/school-map-data", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ schools: currentSchools, tobacco: currentTobacco }),
     })
       .then((r) => {
@@ -1272,8 +1298,20 @@ export default function MapPage() {
             title={isAdmin ? "관리자 모드 해제" : "관리자 로그인"}
           >
             {isAdmin ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-            {isAdmin ? "관리자" : "뷰어"}
+            {isAdmin ? (adminName || "관리자") : "뷰어"}
           </button>
+
+          {/* 변경 이력 버튼 — 관리자만 */}
+          {isAdmin && (
+            <button
+              onClick={() => setShowChangelog(true)}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-semibold shadow-md bg-white text-indigo-500 border border-indigo-200 hover:bg-indigo-50 transition-all"
+              title="변경 이력 보기"
+            >
+              <History className="w-3.5 h-3.5" />
+              이력
+            </button>
+          )}
 
           {/* 자동 저장 상태 뱃지 */}
           {isAdmin && autoSaveStatus !== "idle" && (
@@ -1400,6 +1438,10 @@ export default function MapPage() {
       />
 
       {/* 관리자 비밀번호 모달 */}
+      {showChangelog && (
+        <ChangelogModal token={adminToken} onClose={() => setShowChangelog(false)} />
+      )}
+
       {showAdminModal && (
         <div
           className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50"
@@ -1410,10 +1452,10 @@ export default function MapPage() {
               <Lock className="w-5 h-5 text-amber-500" />
               <h2 className="text-base font-bold text-slate-800">관리자 로그인</h2>
             </div>
-            <p className="text-xs text-slate-500 mb-4">관리자 비밀번호를 입력하면 편집 기능이 활성화됩니다.</p>
+            <p className="text-xs text-slate-500 mb-4">관리자 코드를 입력하면 편집 기능이 활성화됩니다.</p>
             <input
               type="password"
-              placeholder="비밀번호"
+              placeholder="관리자 코드"
               value={adminPwInput}
               onChange={(e) => { setAdminPwInput(e.target.value); setAdminError(""); }}
               onKeyDown={(e) => e.key === "Enter" && handleAdminLogin()}
