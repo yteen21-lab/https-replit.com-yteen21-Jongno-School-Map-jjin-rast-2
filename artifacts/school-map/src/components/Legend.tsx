@@ -254,7 +254,7 @@ export default function Legend({
               >
                 🚬
               </span>
-              <span className="font-medium">무인전자담배자판기</span>
+              <span className="font-medium">무인자판기 매장</span>
               <span className="ml-auto font-mono text-slate-400">{muInShops.length}</span>
               <span className={`text-[10px] font-semibold ml-1 ${showMuIn ? "text-slate-600" : "text-slate-300"}`}>
                 {showMuIn ? "ON" : "OFF"}
@@ -280,7 +280,7 @@ export default function Legend({
               >
                 🏪
               </span>
-              <span className="font-medium">오프라인전자담배</span>
+              <span className="font-medium">오프라인 매장</span>
               <span className="ml-auto font-mono text-slate-400">{yuInShops.length}</span>
               <span className={`text-[10px] font-semibold ml-1 ${showYuIn ? "text-purple-600" : "text-slate-300"}`}>
                 {showYuIn ? "ON" : "OFF"}
