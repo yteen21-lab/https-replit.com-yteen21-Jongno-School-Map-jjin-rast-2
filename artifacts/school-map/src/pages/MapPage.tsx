@@ -242,14 +242,15 @@ function DistrictPanel({ school, allSchools, tobaccoShops, onClose, onEdit, onDe
             </p>
             <div className="space-y-1">
               {([
-                { zone: "50m이내",  label: "절대보호구역, 50m 이내 (심각)" },
-                { zone: "200m이내", label: "상대보호구역 200m 이내 (주의)" },
-                { zone: "외부",     label: "외부 (정상)" },
-              ] as const).map(({ zone, label }) => (
+                { zone: "50m이내",  title: "절대보호구역", subtitle: "50m이내 (심각)" },
+                { zone: "200m이내", title: "상대보호구역", subtitle: "200m 이내 (주의)" },
+                { zone: "외부",     title: "외부",         subtitle: "정상" },
+              ] as const).map(({ zone, title, subtitle }) => (
                 <div key={zone} className="flex items-center justify-between bg-white rounded-md px-2.5 py-1.5 shadow-sm">
                   <div className="flex items-center gap-1.5">
                     <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: TOBACCO_ZONE_COLORS[zone] }} />
-                    <span className="text-[10px] text-slate-600">{label}</span>
+                    <span className="text-[10px] font-bold text-slate-700">{title}</span>
+                    <span className="text-[10px] text-slate-400">{subtitle}</span>
                   </div>
                   <span className="text-sm font-bold text-slate-800">{tobaccoCounts[zone]}</span>
                 </div>

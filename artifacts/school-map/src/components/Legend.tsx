@@ -89,10 +89,10 @@ export default function Legend({
   );
 
   const schoolTypes = Object.entries(SCHOOL_TYPE_COLORS) as [SchoolType, string][];
-  const tobaccoZones: [TobaccoZone, string, string][] = [
-    ["50m이내",  TOBACCO_ZONE_COLORS["50m이내"],  "절대보호구역, 50m 이내 (심각)"],
-    ["200m이내", TOBACCO_ZONE_COLORS["200m이내"], "상대보호구역 200m 이내 (주의)"],
-    ["외부",     TOBACCO_ZONE_COLORS["외부"],     "정상"],
+  const tobaccoZones: [TobaccoZone, string, string, string][] = [
+    ["50m이내",  TOBACCO_ZONE_COLORS["50m이내"],  "절대보호구역", "50m이내 (심각)"],
+    ["200m이내", TOBACCO_ZONE_COLORS["200m이내"], "상대보호구역", "200m 이내 (주의)"],
+    ["외부",     TOBACCO_ZONE_COLORS["외부"],     "외부",         "정상"],
   ];
 
   const TOOLTIP_50 = `절대보호구역 (학교보건법 제5조)\n\n학교 출입문으로부터 직선거리 50m 이내 구역.\n\n청소년 유해업소의 설치가 절대적으로 금지되며, 어떠한 예외도 허용되지 않습니다.`;
@@ -292,7 +292,7 @@ export default function Legend({
         {/* 구역별 분포 */}
         {showTobacco && (
           <ul className="space-y-1 pl-1">
-            {tobaccoZones.map(([zone, color, label]) => {
+            {tobaccoZones.map(([zone, color, title, subtitle]) => {
               const panelKey = zone === "50m이내" ? "50m" : zone === "200m이내" ? "200m" : null;
               const isOpen = panelKey !== null && activeZonePanel === panelKey;
 
@@ -313,8 +313,8 @@ export default function Legend({
                       className="inline-block w-3.5 h-3.5 rounded-sm flex-shrink-0 border-2 border-white shadow-sm"
                       style={{ backgroundColor: color }}
                     />
-                    <span className="font-medium">{zone}</span>
-                    <span className="opacity-60">({label})</span>
+                    <span className="font-bold">{title}</span>
+                    <span className="opacity-60">{subtitle}</span>
                     <span className="ml-auto font-mono font-bold">{tobaccoCounts[zone]}</span>
                     <ChevronRight className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${isOpen ? "rotate-90" : ""}`} />
                   </button>
@@ -325,8 +325,8 @@ export default function Legend({
                     className="inline-block w-3.5 h-3.5 rounded-sm flex-shrink-0 border-2 border-white shadow-sm"
                     style={{ backgroundColor: color }}
                   />
-                  <span className="text-slate-700">{zone}</span>
-                  <span className="text-slate-400">({label})</span>
+                  <span className="text-slate-700">{title}</span>
+                  <span className="text-slate-400">{subtitle}</span>
                   <span className="ml-auto font-mono text-slate-500">{tobaccoCounts[zone]}</span>
                 </li>
               );

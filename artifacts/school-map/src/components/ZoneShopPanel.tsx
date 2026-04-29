@@ -27,8 +27,8 @@ function getNearestSchool(shop: TobaccoShop, schools: School[]): { name: string;
 const ZONE_CONFIG = {
   "50m": {
     label: "50m이내",
-    title: "절대보호구역 (50m이내)",
-    subtitle: "학교 경계선으로부터 50m 이내 — 위반 의심",
+    title: "절대보호구역",
+    subtitle: "50m이내 (심각)",
     headerBg: "bg-red-600",
     rowHover: "hover:bg-red-50",
     distColor: "text-red-600",
@@ -37,8 +37,8 @@ const ZONE_CONFIG = {
   },
   "200m": {
     label: "200m이내",
-    title: "상대보호구역 (200m이내)",
-    subtitle: "학교 경계선으로부터 50~200m 이내 — 주의",
+    title: "상대보호구역",
+    subtitle: "200m 이내 (주의)",
     headerBg: "bg-orange-500",
     rowHover: "hover:bg-orange-50",
     distColor: "text-orange-600",
