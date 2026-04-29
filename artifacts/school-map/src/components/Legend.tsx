@@ -225,7 +225,7 @@ export default function Legend({
           }`}
         >
           <span className="flex-shrink-0 w-4 h-4 rounded-sm border-2 border-orange-400 bg-orange-100 flex items-center justify-center text-[9px]">🚬</span>
-          <span>업소 표시</span>
+          <span>액상형 전자담배 매장 표시</span>
           {showTobacco
             ? <span className="ml-auto text-xs font-semibold">ON</span>
             : <span className="ml-auto text-xs">OFF</span>
