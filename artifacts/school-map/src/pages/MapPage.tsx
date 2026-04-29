@@ -555,6 +555,29 @@ export default function MapPage() {
     return tok ? { "Content-Type": "application/json", Authorization: `Bearer ${tok}` } : { "Content-Type": "application/json" };
   }
 
+  const autoSyncToServer = useCallback((schools: School[], tobacco: TobaccoShop[]) => {
+    fetch("/api/school-map-data", {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ schools, tobacco }),
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json() as Promise<{ ok: boolean; savedAt: string }>;
+      })
+      .then((res) => {
+        if (res.ok) {
+          setServerSynced(true);
+          setSaveError(null);
+          setSavedAt(new Date(res.savedAt).toLocaleTimeString("ko-KR"));
+        }
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        setSaveError(`자동 서버 저장 실패: ${msg}`);
+      });
+  }, []);
+
   const handleAdminLogin = useCallback(async () => {
     setAdminError("");
     try {
@@ -651,42 +674,38 @@ export default function MapPage() {
 
   /* 수정 저장 */
   const handleSaveSchool = useCallback((updated: School) => {
-    setSchools((prev) => {
-      const next = prev.map((s) => s.id === updated.id ? updated : s);
-      saveToStorage(STORAGE_KEY_SCHOOLS, next);
-      return next;
-    });
+    const next = schoolsRef.current.map((s) => s.id === updated.id ? updated : s);
+    saveToStorage(STORAGE_KEY_SCHOOLS, next);
+    setSchools(next);
     setSelectedSchool((prev) => prev?.id === updated.id ? updated : prev);
+    autoSyncToServer(next, tobaccoRef.current);
   }, []);
 
   const handleSaveTobacco = useCallback((updated: TobaccoShop) => {
-    setTobaccoShops((prev) => {
-      const next = prev.map((s) => s.id === updated.id ? updated : s);
-      saveToStorage(STORAGE_KEY_TOBACCO, next);
-      return next;
-    });
+    const next = tobaccoRef.current.map((s) => s.id === updated.id ? updated : s);
+    saveToStorage(STORAGE_KEY_TOBACCO, next);
+    setTobaccoShops(next);
     setSelectedTobaccoShop((prev) => prev?.id === updated.id ? updated : prev);
     setTobaccoVersion((v) => v + 1);
+    autoSyncToServer(schoolsRef.current, next);
   }, []);
 
   /* 삭제 */
   const handleDeleteSchool = useCallback((id: string) => {
-    setSchools((prev) => {
-      const next = prev.filter((s) => s.id !== id);
-      saveToStorage(STORAGE_KEY_SCHOOLS, next);
-      return next;
-    });
+    const next = schoolsRef.current.filter((s) => s.id !== id);
+    saveToStorage(STORAGE_KEY_SCHOOLS, next);
+    setSchools(next);
     setSelectedSchool((prev) => prev?.id === id ? null : prev);
+    autoSyncToServer(next, tobaccoRef.current);
   }, []);
 
   const handleDeleteTobacco = useCallback((id: string) => {
-    setTobaccoShops((prev) => {
-      const next = prev.filter((s) => s.id !== id);
-      saveToStorage(STORAGE_KEY_TOBACCO, next);
-      return next;
-    });
+    const next = tobaccoRef.current.filter((s) => s.id !== id);
+    saveToStorage(STORAGE_KEY_TOBACCO, next);
+    setTobaccoShops(next);
     setSelectedTobaccoShop((prev) => prev?.id === id ? null : prev);
     setTobaccoVersion((v) => v + 1);
+    autoSyncToServer(schoolsRef.current, next);
   }, []);
 
   /* 지도 클릭으로 학교 추가 → localStorage + 서버 자동 동기화 */
