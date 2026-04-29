@@ -92,7 +92,7 @@ export default function Legend({
   const tobaccoZones: [TobaccoZone, string, string, string][] = [
     ["50m이내",  TOBACCO_ZONE_COLORS["50m이내"],  "절대보호구역", "50m이내 (심각)"],
     ["200m이내", TOBACCO_ZONE_COLORS["200m이내"], "상대보호구역", "200m 이내 (주의)"],
-    ["외부",     TOBACCO_ZONE_COLORS["외부"],     "외부",         "정상"],
+    ["외부",     TOBACCO_ZONE_COLORS["외부"],     "보호구역 밖",  ""],
   ];
 
   const TOOLTIP_50 = `절대보호구역 (학교보건법 제5조)\n\n학교 출입문으로부터 직선거리 50m 이내 구역.\n\n청소년 유해업소의 설치가 절대적으로 금지되며, 어떠한 예외도 허용되지 않습니다.`;
