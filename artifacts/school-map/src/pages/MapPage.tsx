@@ -300,11 +300,11 @@ function DistrictPanel({ school, allSchools, tobaccoShops, onClose, onEdit, onDe
         ))}
         <div className="text-center py-1.5">
           <div className="text-xs font-bold text-slate-600">{distTobacco.filter(s => s.shopType !== "유인").length}</div>
-          <div className="text-[7px] text-slate-400">무인</div>
+          <div className="text-[7px] text-slate-400">무인자판기</div>
         </div>
         <div className="text-center py-1.5">
           <div className="text-xs font-bold text-purple-600">{distTobacco.filter(s => s.shopType === "유인").length}</div>
-          <div className="text-[7px] text-slate-400">유인</div>
+          <div className="text-[7px] text-slate-400">오프라인</div>
         </div>
       </div>
     </div>
@@ -1121,15 +1121,15 @@ export default function MapPage() {
                 })}
               </div>
               <div className="border-t border-slate-200 pt-1.5">
-                <p className="text-[9px] text-slate-400 font-semibold text-center mb-1">🚬 담배샵</p>
+                <p className="text-[9px] text-slate-400 font-semibold text-center mb-1">🚬 액상형 전자담배 매장</p>
                 <div className="grid grid-cols-2 gap-1 text-center">
                   <div>
                     <div className="text-sm font-bold text-slate-600">{tobaccoShops.filter(s => s.shopType !== "유인").length}</div>
-                    <div className="text-[9px] text-slate-400">무인</div>
+                    <div className="text-[9px] text-slate-400">무인 자판기 매장</div>
                   </div>
                   <div>
                     <div className="text-sm font-bold text-orange-500">{tobaccoShops.filter(s => s.shopType === "유인").length}</div>
-                    <div className="text-[9px] text-slate-400">유인</div>
+                    <div className="text-[9px] text-slate-400">오프라인 매장</div>
                   </div>
                 </div>
               </div>
