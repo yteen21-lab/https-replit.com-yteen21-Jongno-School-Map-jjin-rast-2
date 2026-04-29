@@ -229,7 +229,7 @@ function DistrictPanel({ school, allSchools, tobaccoShops, onClose, onEdit, onDe
                 <div key={type} className="bg-white rounded-md py-2 flex flex-col items-center shadow-sm">
                   <span className="w-3 h-3 rounded-full mb-1" style={{ backgroundColor: SCHOOL_TYPE_COLORS[type] }} />
                   <span className="text-base font-bold text-slate-800">{schoolCounts[type]}</span>
-                  <span className="text-[9px] text-slate-400 mt-0.5">{type.replace("학교","")}</span>
+                  <span className="text-[9px] text-slate-400 mt-0.5">{type}</span>
                 </div>
               ))}
             </div>
@@ -273,7 +273,7 @@ function DistrictPanel({ school, allSchools, tobaccoShops, onClose, onEdit, onDe
             {(["유치원","초등학교","중학교","고등학교"] as const).map((type) => (
               <div key={type} className="flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: SCHOOL_TYPE_COLORS[type] }} />
-                <span className="text-slate-700">{type.replace("학교","")} {schoolCounts[type]}</span>
+                <span className="text-slate-700">{type} {schoolCounts[type]}</span>
               </div>
             ))}
             <div className="border-t border-slate-200 mt-0.5 pt-0.5 space-y-0.5">
@@ -295,7 +295,7 @@ function DistrictPanel({ school, allSchools, tobaccoShops, onClose, onEdit, onDe
         {(["유치원","초등학교","중학교","고등학교"] as const).map((type) => (
           <div key={type} className="text-center py-1.5">
             <div className="text-xs font-bold" style={{ color: SCHOOL_TYPE_COLORS[type] }}>{schoolCounts[type]}</div>
-            <div className="text-[7px] text-slate-400">{type.replace("학교","")}</div>
+            <div className="text-[7px] text-slate-400">{type}</div>
           </div>
         ))}
         <div className="text-center py-1.5">
@@ -1115,7 +1115,7 @@ export default function MapPage() {
                   return (
                     <div key={type}>
                       <div className="text-sm font-bold" style={{ color: SCHOOL_TYPE_COLORS[type] }}>{count}</div>
-                      <div className="text-[9px] text-slate-400">{type.replace("학교","")}</div>
+                      <div className="text-[9px] text-slate-400">{type}</div>
                     </div>
                   );
                 })}
