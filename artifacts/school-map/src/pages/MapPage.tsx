@@ -883,7 +883,7 @@ export default function MapPage() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => { setSearchQuery(e.target.value); setActiveTab("list"); }}
-                  placeholder="학교·담배샵 검색..."
+                  placeholder="학교명, 매장명"
                   className="w-full pl-6 pr-6 py-1.5 text-[11px] bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition"
                 />
                 {searchQuery && (
@@ -1199,7 +1199,7 @@ export default function MapPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value); if (isMobile) setSidebarOpen(true); }}
-                placeholder={isMobile ? "검색..." : "학교명, 구, 유형 검색..."}
+                placeholder="학교명, 매장명"
                 className="w-full pl-9 pr-8 py-2.5 text-sm bg-white border border-slate-200 rounded-xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent"
               />
               {searchQuery && (
