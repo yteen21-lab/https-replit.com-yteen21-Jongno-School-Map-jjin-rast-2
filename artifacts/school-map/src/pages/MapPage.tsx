@@ -242,8 +242,8 @@ function DistrictPanel({ school, allSchools, tobaccoShops, onClose, onEdit, onDe
             </p>
             <div className="space-y-1">
               {([
-                { zone: "50m이내",  label: "50m 이내 (위반 의심)" },
-                { zone: "200m이내", label: "200m 이내 (주의)" },
+                { zone: "50m이내",  label: "절대보호구역, 50m 이내 (심각)" },
+                { zone: "200m이내", label: "상대보호구역 200m 이내 (주의)" },
                 { zone: "외부",     label: "외부 (정상)" },
               ] as const).map(({ zone, label }) => (
                 <div key={zone} className="flex items-center justify-between bg-white rounded-md px-2.5 py-1.5 shadow-sm">

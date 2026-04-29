@@ -90,8 +90,8 @@ export default function Legend({
 
   const schoolTypes = Object.entries(SCHOOL_TYPE_COLORS) as [SchoolType, string][];
   const tobaccoZones: [TobaccoZone, string, string][] = [
-    ["50m이내",  TOBACCO_ZONE_COLORS["50m이내"],  "위반 의심"],
-    ["200m이내", TOBACCO_ZONE_COLORS["200m이내"], "주의"],
+    ["50m이내",  TOBACCO_ZONE_COLORS["50m이내"],  "절대보호구역, 50m 이내 (심각)"],
+    ["200m이내", TOBACCO_ZONE_COLORS["200m이내"], "상대보호구역 200m 이내 (주의)"],
     ["외부",     TOBACCO_ZONE_COLORS["외부"],     "정상"],
   ];
 
