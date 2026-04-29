@@ -1,7 +1,7 @@
 {
-  "name": "학교 주변 담배 판매 업소 지도",
-  "short_name": "담배 업소 지도",
-  "description": "청소년 보호를 위한 학교 주변 담배 판매 업소 반경 모니터링 지도 (서울·경기)",
+  "name": "액상형 전자담배 매장 지도(서울,경기)",
+  "short_name": "전자담배 지도",
+  "description": "액상형 전자담배 매장 위치 및 학교 보호구역 반경 모니터링 지도 (서울·경기)",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -42,7 +42,7 @@
       "sizes": "1200x630",
       "type": "image/jpeg",
       "form_factor": "wide",
-      "label": "학교 주변 담배 판매 업소 반경 지도 — 데스크톱"
+      "label": "액상형 전자담배 매장 지도(서울,경기) — 데스크톱"
     }
   ],
   "categories": ["education", "government", "social"],
