@@ -800,7 +800,7 @@ export default function LeafletMap({
                               "⚫ 학교 200m 외부 (정상)";
 
       const el = document.createElement("div");
-      el.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;";
+      el.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;pointer-events:auto;";
       el.innerHTML = `
         <div style="position:relative;width:28px;height:28px;">
           <div style="
@@ -825,23 +825,22 @@ export default function LeafletMap({
 
       el.addEventListener("click", (e) => {
         e.stopPropagation();
+
+        /* 담배샵 추가 모드 중 기존 마커 클릭은 무시 (지도 클릭으로 추가) */
+        if (addTobaccoModeRef.current) return;
+
+        /* ── 관리자: EditPanel 직접 오픈 ── */
+        if (isAdminRef.current) {
+          if (openPopupRef.current) { openPopupRef.current.remove(); openPopupRef.current = null; }
+          onEditTobaccoRef.current?.(shop);
+          return;
+        }
+
+        /* ── 뷰어: 정보 팝업 표시 ── */
         if (openPopupRef.current) {
           openPopupRef.current.remove();
           openPopupRef.current = null;
         }
-
-        const adminButtons = isAdminRef.current ? `
-          <div id="popup-admin-btns" style="display:flex;gap:6px;margin-top:10px;padding-top:8px;border-top:1px solid #f1f5f9;">
-            <button id="popup-edit" style="flex:1;background:#f8fafc;border:1.5px solid #e2e8f0;color:#475569;border-radius:7px;padding:5px 0;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">✏️ 수정</button>
-            <button id="popup-delete" style="flex:1;background:#fef2f2;border:1.5px solid #fecaca;color:#dc2626;border-radius:7px;padding:5px 0;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">🗑️ 삭제</button>
-          </div>
-          <div id="popup-confirm-area" style="display:none;margin-top:10px;padding:10px;background:#fef2f2;border:1.5px solid #fecaca;border-radius:8px;">
-            <p style="font-size:11px;color:#dc2626;margin:0 0 8px;font-weight:600;">정말 삭제하시겠습니까?</p>
-            <div style="display:flex;gap:6px;">
-              <button id="popup-confirm-yes" style="flex:1;background:#dc2626;color:white;border:none;border-radius:6px;padding:6px 0;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">확인 삭제</button>
-              <button id="popup-confirm-no" style="flex:1;background:#f8fafc;border:1.5px solid #e2e8f0;color:#475569;border-radius:6px;padding:6px 0;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">취소</button>
-            </div>
-          </div>` : "";
 
         const popup = document.createElement("div");
         popup.style.cssText = `
@@ -849,7 +848,7 @@ export default function LeafletMap({
           background:white;border-radius:10px;padding:12px 14px;min-width:200px;
           box-shadow:0 4px 16px rgba(0,0,0,0.18);
           font-family:'Noto Sans KR',sans-serif;
-          border-top:4px solid ${color};z-index:100;
+          border-top:4px solid ${color};z-index:100;pointer-events:auto;
         `;
         popup.innerHTML = `
           <button id="popup-close" style="position:absolute;top:6px;right:8px;background:none;border:none;cursor:pointer;font-size:14px;color:#94a3b8;">✕</button>
@@ -860,42 +859,12 @@ export default function LeafletMap({
             </span>
           </div>
           ${shop.address ? `<p style="font-size:11px;color:#64748b;margin:0 0 6px;">${shop.address}</p>` : ""}
-          <p style="font-size:12px;font-weight:600;color:${color};margin:0 0 2px;">${zoneLabel}</p>
-          ${adminButtons}`;
+          <p style="font-size:12px;font-weight:600;color:${color};margin:0 0 2px;">${zoneLabel}</p>`;
 
         popup.querySelector("#popup-close")?.addEventListener("click", (ev) => {
           ev.stopPropagation();
           popup.remove();
           openPopupRef.current = null;
-        });
-
-        popup.querySelector("#popup-edit")?.addEventListener("click", (ev) => {
-          ev.stopPropagation();
-          popup.remove();
-          openPopupRef.current = null;
-          onEditTobaccoRef.current?.(shop);
-        });
-
-        popup.querySelector("#popup-delete")?.addEventListener("click", (ev) => {
-          ev.stopPropagation();
-          const adminBtns = popup.querySelector<HTMLElement>("#popup-admin-btns");
-          const confirmArea = popup.querySelector<HTMLElement>("#popup-confirm-area");
-          if (adminBtns) adminBtns.style.display = "none";
-          if (confirmArea) confirmArea.style.display = "block";
-        });
-
-        popup.querySelector("#popup-confirm-yes")?.addEventListener("click", (ev) => {
-          ev.stopPropagation();
-          clearTobaccoLayers();
-          onDeleteTobaccoRef.current?.(shop.id);
-        });
-
-        popup.querySelector("#popup-confirm-no")?.addEventListener("click", (ev) => {
-          ev.stopPropagation();
-          const adminBtns = popup.querySelector<HTMLElement>("#popup-admin-btns");
-          const confirmArea = popup.querySelector<HTMLElement>("#popup-confirm-area");
-          if (confirmArea) confirmArea.style.display = "none";
-          if (adminBtns) adminBtns.style.display = "flex";
         });
 
         el.style.position = "relative";
