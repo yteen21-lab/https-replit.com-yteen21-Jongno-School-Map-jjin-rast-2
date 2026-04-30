@@ -1,4 +1,4 @@
-modules = ["nodejs-24"]
+modules = ["nodejs-24", "postgresql-16"]
 
 [deployment]
 router = "application"
@@ -36,3 +36,6 @@ externalPort = 3000
 [userenv.shared]
 VITE_KAKAO_MAP_API_KEY = "d9d70ccdf19ca5945b47bbed42b5e481"
 ADMIN_PASSWORD = "1028"
+
+[nix]
+channel = "stable-25_05"
