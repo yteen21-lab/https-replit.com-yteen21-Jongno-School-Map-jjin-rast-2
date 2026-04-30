@@ -378,7 +378,9 @@ export default function MapPage() {
 
   /* 서버에서 공유 데이터 로드 — 없으면 로컬 데이터를 자동 업로드 */
   useEffect(() => {
-    fetch("/api/school-map-data")
+    fetch("/api/school-map-data", {
+      headers: { "Accept-Encoding": "gzip, deflate, br" },
+    })
       .then(async (r) => {
         if (r.ok) {
           /* 서버에 데이터가 있으면 그걸 사용 */

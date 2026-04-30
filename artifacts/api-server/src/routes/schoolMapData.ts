@@ -7,7 +7,7 @@ const router: IRouter = Router();
 const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
 const BUCKET_ID = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID ?? "";
 const GCS_FILE   = "school-map-data.json";
-const CACHE_TTL  = 60_000; // 1분 (ms)
+const CACHE_TTL  = 10 * 60_000; // 10분 (ms)
 
 function makeStorage(): Storage {
   return new Storage({
@@ -134,11 +134,23 @@ async function saveToGCS(data: SharedData): Promise<void> {
   });
 }
 
+/* ── 캐시 워밍업: 서버 시작 직후 GCS 데이터를 미리 로드 ── */
+if (BUCKET_ID) {
+  loadFromGCS()
+    .then((data) => {
+      if (data && (data.schools.length > 0 || data.tobacco.length > 0)) {
+        setCache(data);
+      }
+    })
+    .catch(() => { /* 워밍업 실패는 무시 — 첫 요청 시 다시 시도 */ });
+}
+
 /* ── 라우트 ── */
 router.get("/school-map-data", async (_req, res) => {
-  // 1. 캐시 우선
+  // 1. 캐시 우선 — 브라우저에도 30초 캐시 허용
   const cached = getCached();
   if (cached) {
+    res.setHeader("Cache-Control", "public, max-age=30, stale-while-revalidate=300");
     res.json(cached);
     return;
   }
@@ -151,6 +163,7 @@ router.get("/school-map-data", async (_req, res) => {
   }
 
   setCache(data);
+  res.setHeader("Cache-Control", "public, max-age=30, stale-while-revalidate=300");
   res.json(data);
 });
 
