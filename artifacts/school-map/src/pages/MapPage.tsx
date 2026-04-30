@@ -97,23 +97,20 @@ function schoolScore(s: School, tokens: string[]): number | null {
 
 function LogoSection() {
   return (
-    <div className="px-2 py-2 border-t border-slate-100 space-y-1.5">
-      <div className="bg-white border border-slate-100 rounded-lg px-2 py-1.5 flex items-center justify-center">
-        <img
-          src={ymcaLogo}
-          alt="서울YMCA"
-          className="w-full object-contain"
-          style={{ maxHeight: "80px" }}
-        />
-      </div>
-      <div className="bg-white border border-slate-100 rounded-lg px-2 py-1.5 flex items-center justify-center">
-        <img
-          src={kctcreLogo}
-          alt="한국담배규제연구교육센터"
-          className="w-full object-contain"
-          style={{ maxHeight: "52px" }}
-        />
-      </div>
+    <div className="px-2 py-1 border-t border-slate-100 flex items-center justify-center gap-3 bg-white">
+      <img
+        src={ymcaLogo}
+        alt="서울YMCA"
+        className="object-contain"
+        style={{ height: "22px", width: "auto" }}
+      />
+      <div className="w-px h-4 bg-slate-200" />
+      <img
+        src={kctcreLogo}
+        alt="한국담배규제연구교육센터"
+        className="object-contain"
+        style={{ height: "18px", width: "auto" }}
+      />
     </div>
   );
 }
