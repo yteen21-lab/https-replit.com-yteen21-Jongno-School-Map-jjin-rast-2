@@ -612,6 +612,7 @@ export default function LeafletMap({
     if (schools.length === 0) return;
 
     const level = map.getLevel();
+    const isDotMode = level >= 8; /* 광역 보기: 점만 표시 */
     const vp = getViewportBounds(map);
     const visibleSchools = schools.filter(s => inBounds(s.lat, s.lng, vp));
     if (visibleSchools.length === 0) return;
@@ -626,6 +627,20 @@ export default function LeafletMap({
       const centLat = group.reduce((s, sc) => s + sc.lat, 0) / group.length;
       const centLng = group.reduce((s, sc) => s + sc.lng, 0) / group.length;
       const centPos = new kakao.maps.LatLng(centLat, centLng);
+
+      /* ── 점 모드: 작은 색상 점만 표시 (원·라벨 생략) ── */
+      if (isDotMode) {
+        const primaryType = SCHOOL_TYPE_PRIORITY.find(t => group.some(sc => sc.type === t)) ?? group[0].type;
+        const dotColor = SCHOOL_TYPE_COLORS[primaryType];
+        const dotSize = isCluster ? Math.min(6 + group.length, 12) : 6;
+        const dot = document.createElement("div");
+        dot.style.cssText = `width:${dotSize}px;height:${dotSize}px;background:${dotColor};border-radius:50%;border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.4);pointer-events:none;`;
+        const overlay = new kakao.maps.CustomOverlay({
+          position: centPos, content: dot, map, zIndex: 2, xAnchor: 0.5, yAnchor: 0.5,
+        });
+        schoolLayersRef.current.push(overlay);
+        return;
+      }
 
       /* 중심에서 가장 먼 학교까지 거리 + 부지 반경 → 원 반경 산출 */
       const maxReach = isCluster
@@ -772,15 +787,34 @@ export default function LeafletMap({
   };
   useEffect(() => { renderSchoolLayersRef.current(); }, [schools, selectedSchool, showRadius50, showRadius200]);
 
-  /* ── 담배 업소 마커 (뷰포트 컬링) ── */
+  /* ── 담배 업소 마커 (뷰포트 컬링 + 줌 점 모드) ── */
   renderTobaccoLayersRef.current = () => {
     const map = mapRef.current;
     if (!map || !kakaoLoaded) return;
     clearTobaccoLayers();
     if (!showTobacco) return;
 
+    const level = map.getLevel();
+    const isDotMode = level >= 8; /* 광역 보기: 점만 표시 */
     const vp = getViewportBounds(map);
     const visibleShops = tobaccoShops.filter(s => inBounds(s.lat, s.lng, vp));
+
+    /* ── 점 모드: 작은 색상 사각형만 렌더 (이벤트 없음) ── */
+    if (isDotMode) {
+      visibleShops.forEach((shop) => {
+        const zone = getTobaccoZone(shop, schoolsRef.current);
+        const color = TOBACCO_ZONE_COLORS[zone];
+        const dot = document.createElement("div");
+        dot.style.cssText = `width:5px;height:5px;background:${color};border-radius:1px;border:1px solid rgba(255,255,255,0.8);pointer-events:none;`;
+        const overlay = new kakao.maps.CustomOverlay({
+          position: new kakao.maps.LatLng(shop.lat, shop.lng),
+          content: dot, map, zIndex: 5, xAnchor: 0.5, yAnchor: 0.5,
+        });
+        tobaccoLayersRef.current.push(overlay);
+        tobaccoOverlayMapRef.current.set(shop.id, overlay);
+      });
+      return;
+    }
 
     visibleShops.forEach((shop) => {
       /* 구역 계산은 전체 schools 기준(schoolsRef)으로 정확도 보장 */
