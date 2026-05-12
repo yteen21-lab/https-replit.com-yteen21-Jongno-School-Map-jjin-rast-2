@@ -15,7 +15,7 @@ import {
   isSchoolDup, isTobaccoDup,
 } from "@/types/school";
 import { RefreshCw, School as SchoolIcon, ChevronLeft, ChevronRight, Search, X, Link2, Check, CloudUpload, Cloud, Pencil, Trash2, Lock, Unlock, Eye, History } from "lucide-react";
-import ymcaLogo from "@assets/ymca로고_1776149746053.jpg";
+import ymcaLogo from "@assets/image_1778548237468.png";
 import kctcreLogo from "@assets/image_1776150010933.png";
 import DistrictMiniMap from "@/components/DistrictMiniMap";
 import ChangelogModal from "@/components/ChangelogModal";
