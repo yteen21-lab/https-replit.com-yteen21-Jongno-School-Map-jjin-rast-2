@@ -334,6 +334,7 @@ export default function MapPage() {
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [serverSynced, setServerSynced] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const serverEtagRef = useRef<string>(""); /* 마지막으로 받은 ETag 저장 */
   const [copyDone, setCopyDone] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [editTarget, setEditTarget] = useState<
@@ -382,6 +383,9 @@ export default function MapPage() {
     })
       .then(async (r) => {
         if (r.ok) {
+          /* ETag 저장 — 이후 폴링에서 변경 감지에 사용 */
+          const etag = r.headers.get("etag");
+          if (etag) serverEtagRef.current = etag;
           /* 서버에 데이터가 있으면 그걸 사용 */
           const data = await r.json() as { schools: School[]; tobacco: TobaccoShop[]; savedAt: string };
           /* GCS 데이터에도 이름·좌표 기반 중복 제거 적용 */
@@ -425,6 +429,38 @@ export default function MapPage() {
         /* 초기 로드 완료 — 이후 변경부터 자동 저장 허용 */
         setTimeout(() => { dataInitialized.current = true; }, 500);
       });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* 뷰어 폴링 — 30초마다 서버 데이터 변경 확인 (관리자 모드엔 불필요) */
+  useEffect(() => {
+    const POLL_INTERVAL = 30_000;
+
+    const poll = async () => {
+      if (isAdminRef.current) return; /* 관리자는 직접 저장하므로 폴링 불필요 */
+      try {
+        const headers: Record<string, string> = { "Accept-Encoding": "gzip, deflate, br" };
+        if (serverEtagRef.current) headers["If-None-Match"] = serverEtagRef.current;
+
+        const r = await fetch("/api/school-map-data", { headers });
+
+        if (r.status === 304) return; /* 데이터 미변경 — 아무 것도 안 함 */
+
+        if (r.ok) {
+          const newEtag = r.headers.get("etag");
+          if (newEtag && newEtag === serverEtagRef.current) return; /* 혹시 ETag 없어도 이중 확인 */
+          if (newEtag) serverEtagRef.current = newEtag;
+
+          const data = await r.json() as { schools: School[]; tobacco: TobaccoShop[]; savedAt: string };
+          setSchools(data.schools ?? []);
+          setTobaccoShops(data.tobacco ?? []);
+          if (data.savedAt) setSavedAt(new Date(data.savedAt).toLocaleTimeString("ko-KR"));
+        }
+      } catch { /* 네트워크 오류는 무시 */ }
+    };
+
+    const id = setInterval(poll, POLL_INTERVAL);
+    return () => clearInterval(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
