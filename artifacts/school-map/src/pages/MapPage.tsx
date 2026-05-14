@@ -14,11 +14,12 @@ import {
   computeDistrictPolygon,
   isSchoolDup, isTobaccoDup,
 } from "@/types/school";
-import { RefreshCw, School as SchoolIcon, ChevronLeft, ChevronRight, Search, X, Link2, Check, CloudUpload, Cloud, Pencil, Trash2, Lock, Unlock, Eye, History } from "lucide-react";
+import { RefreshCw, School as SchoolIcon, ChevronLeft, ChevronRight, Search, X, Link2, Check, CloudUpload, Cloud, Pencil, Trash2, Lock, Unlock, Eye, History, LayoutDashboard } from "lucide-react";
 import ymcaLogo from "@assets/image_1778548237468.png";
 import kctcreLogo from "@assets/image_1776150010933.png";
 import DistrictMiniMap from "@/components/DistrictMiniMap";
 import ChangelogModal from "@/components/ChangelogModal";
+import AdminDashboard from "@/components/AdminDashboard";
 
 const SIDEBAR_MIN = 140;
 const SIDEBAR_MAX = 400;
@@ -351,6 +352,7 @@ export default function MapPage() {
   const [adminPwInput, setAdminPwInput] = useState("");
   const [adminError, setAdminError] = useState("");
   const [showChangelog, setShowChangelog] = useState(false);
+  const [showAdminDashboard, setShowAdminDashboard] = useState(false);
   /* 자동 저장 */
   const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const dataInitialized = useRef(false);
@@ -1333,6 +1335,18 @@ export default function MapPage() {
             </button>
           )}
 
+          {/* 관리자 대시보드 버튼 — 관리자만 */}
+          {isAdmin && (
+            <button
+              onClick={() => setShowAdminDashboard(true)}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-semibold shadow-md bg-white text-amber-600 border border-amber-200 hover:bg-amber-50 transition-all"
+              title="관리자 대시보드"
+            >
+              <LayoutDashboard className="w-3.5 h-3.5" />
+              대시보드
+            </button>
+          )}
+
           {/* 자동 저장 상태 뱃지 */}
           {isAdmin && autoSaveStatus !== "idle" && (
             <span className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold shadow-sm border transition-all ${
@@ -1457,9 +1471,23 @@ export default function MapPage() {
         onDeleteTobacco={handleDeleteTobacco}
       />
 
-      {/* 관리자 비밀번호 모달 */}
+      {/* 변경 이력 모달 */}
       {showChangelog && (
         <ChangelogModal token={adminToken} onClose={() => setShowChangelog(false)} />
+      )}
+
+      {/* 관리자 대시보드 */}
+      {showAdminDashboard && (
+        <AdminDashboard
+          schools={schools}
+          tobaccoShops={tobaccoShops}
+          token={adminToken}
+          onClose={() => setShowAdminDashboard(false)}
+          onDataUpdate={(newSchools, newTobacco) => {
+            setSchools(newSchools);
+            setTobaccoShops(newTobacco);
+          }}
+        />
       )}
 
       {showAdminModal && (

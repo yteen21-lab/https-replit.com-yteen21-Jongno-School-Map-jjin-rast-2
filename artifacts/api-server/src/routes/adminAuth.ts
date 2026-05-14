@@ -1,6 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import crypto from "crypto";
-import { db, schoolMapChangelog } from "@workspace/db";
+import { eq } from "drizzle-orm";
+import { db, schoolMapChangelog, adminAccounts } from "@workspace/db";
 
 const router: Router = Router();
 
@@ -55,11 +56,21 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
 /* ── 라우트 ── */
 
 /* POST /api/admin-login */
-router.post("/admin-login", (req: Request, res: Response) => {
+router.post("/admin-login", async (req: Request, res: Response) => {
   const { code } = req.body as { code?: string };
   if (!code) { res.status(400).json({ ok: false, error: "코드를 입력해 주세요." }); return; }
 
-  const account = getAccounts().find(a => a.code === code);
+  /* 1) 환경변수 계정 확인 */
+  let account = getAccounts().find(a => a.code === code);
+
+  /* 2) DB 계정 확인 */
+  if (!account) {
+    try {
+      const [row] = await db.select().from(adminAccounts).where(eq(adminAccounts.code, code)).limit(1);
+      if (row) account = { code: row.code, name: row.name };
+    } catch { /* DB 오류 시 무시 */ }
+  }
+
   if (!account) { res.status(401).json({ ok: false, error: "코드가 올바르지 않습니다." }); return; }
 
   const token = crypto.randomBytes(32).toString("hex");
