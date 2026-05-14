@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { X, History, Plus, Minus, RefreshCw } from "lucide-react";
+import { X, History, Plus, Minus, RefreshCw, Trash2 } from "lucide-react";
 
 interface ChangelogEntry {
   at: string;
@@ -38,6 +38,8 @@ export default function ChangelogModal({ token, onClose }: Props) {
   const [entries, setEntries] = useState<ChangelogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [clearing, setClearing] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -52,6 +54,23 @@ export default function ChangelogModal({ token, onClose }: Props) {
       })
       .catch(() => setError("서버 연결에 실패했습니다."))
       .finally(() => setLoading(false));
+  };
+
+  const handleClear = () => {
+    if (!confirmClear) { setConfirmClear(true); return; }
+    setClearing(true);
+    setConfirmClear(false);
+    fetch("/api/admin/changelog", {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json() as Promise<{ ok: boolean; error?: string }>)
+      .then(data => {
+        if (data.ok) setEntries([]);
+        else setError(data.error ?? "초기화 실패");
+      })
+      .catch(() => setError("서버 연결에 실패했습니다."))
+      .finally(() => setClearing(false));
   };
 
   useEffect(() => { load(); }, []);
@@ -74,10 +93,28 @@ export default function ChangelogModal({ token, onClose }: Props) {
             <button
               onClick={load}
               title="새로고침"
-              className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+              disabled={loading}
+              className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-40"
             >
-              <RefreshCw className="w-3.5 h-3.5" />
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
             </button>
+            {/* 초기화 버튼 — 1회 클릭 시 확인 요청, 2회 클릭 시 실행 */}
+            {entries.length > 0 && (
+              <button
+                onClick={handleClear}
+                disabled={clearing}
+                title={confirmClear ? "한 번 더 클릭하면 전체 삭제됩니다" : "이력 전체 초기화"}
+                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors ${
+                  confirmClear
+                    ? "bg-red-500 text-white hover:bg-red-600"
+                    : "hover:bg-red-50 text-red-400 hover:text-red-600"
+                }`}
+                onBlur={() => setConfirmClear(false)}
+              >
+                <Trash2 className="w-3 h-3" />
+                {confirmClear ? "확인 (재클릭)" : "초기화"}
+              </button>
+            )}
             <button
               onClick={onClose}
               className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"

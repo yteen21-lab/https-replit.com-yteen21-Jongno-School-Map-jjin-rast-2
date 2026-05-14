@@ -96,6 +96,16 @@ router.get("/admin/changelog", requireAdmin, async (_req: Request, res: Response
   }
 });
 
+/* DELETE /api/admin/changelog  — 이력 전체 삭제 */
+router.delete("/admin/changelog", requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    await db.delete(schoolMapChangelog);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: String(err) });
+  }
+});
+
 /* Legacy: POST /api/admin-verify */
 router.post("/admin-verify", (req: Request, res: Response) => {
   const { password } = req.body as { password?: string };
