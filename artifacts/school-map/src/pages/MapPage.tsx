@@ -1158,16 +1158,28 @@ export default function MapPage() {
             {/* 출처 표기 */}
             <div className="border-t border-slate-100 px-3 py-1.5 bg-white flex-shrink-0 space-y-0.5">
               <p className="text-[9px] text-slate-400 leading-tight text-center">
-                학교·유치원:{" "}
+                경기도 학교·유치원:{" "}
                 <a
                   href="https://www.data.go.kr/data/15037485/fileData.do"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="underline hover:text-slate-600"
                 >
-                  공공데이터포털 (교육부)
+                  공공데이터포털
                 </a>
-                {" "}· 공공누리 제1유형
+                {" "}(갱신 25.08.26)
+              </p>
+              <p className="text-[9px] text-slate-400 leading-tight text-center">
+                서울시 학교·유치원:{" "}
+                <a
+                  href="https://data.seoul.go.kr"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-slate-600"
+                >
+                  서울열린데이터광장
+                </a>
+                {" "}(갱신 26.05.02)
               </p>
               <p className="text-[9px] text-slate-400 leading-tight text-center">
                 전자담배: 한국담배규제연구교육센터 · 제작 서울YMCA
@@ -1243,7 +1255,10 @@ export default function MapPage() {
           style={{ bottom: isMobile ? `${MOBILE_SHEET_HANDLE_H + 4}px` : "4px" }}
         >
           <span className="text-[8px] text-slate-500/80 bg-white/70 backdrop-blur-sm rounded px-1 py-0.5">
-            학교·유치원: 공공데이터포털(교육부) · 공공누리 제1유형
+            경기도 학교·유치원: 공공데이터포털 (갱신 25.08.26)
+          </span>
+          <span className="text-[8px] text-slate-500/80 bg-white/70 backdrop-blur-sm rounded px-1 py-0.5">
+            서울시 학교·유치원: 서울열린데이터광장 (갱신 26.05.02)
           </span>
           <span className="text-[8px] text-slate-500/80 bg-white/70 backdrop-blur-sm rounded px-1 py-0.5">
             전자담배: 한국담배규제연구교육센터 · 제작 서울YMCA
