@@ -1,6 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import crypto from "crypto";
-import { Storage } from "@google-cloud/storage";
+import { db, schoolMapChangelog } from "@workspace/db";
 
 const router: Router = Router();
 
@@ -51,50 +51,6 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
   next();
 }
 
-/* ── 변경 이력 (GCS) ── */
-const BUCKET_ID = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID ?? "";
-const CHANGELOG_FILE = "school-map-changelog.json";
-const MAX_ENTRIES = 300;
-
-interface ChangelogEntry {
-  at: string;
-  adminName: string;
-  schoolsAdded: string[];
-  schoolsRemoved: string[];
-  tobaccoAdded: string[];
-  tobaccoRemoved: string[];
-}
-
-function makeStorage() {
-  return new Storage({ projectId: "" });
-}
-
-export async function appendChangelog(entry: ChangelogEntry): Promise<void> {
-  if (!BUCKET_ID) return;
-  const file = makeStorage().bucket(BUCKET_ID).file(CHANGELOG_FILE);
-  let existing: ChangelogEntry[] = [];
-  try {
-    const [buf] = await file.download();
-    existing = JSON.parse(buf.toString("utf-8")) as ChangelogEntry[];
-    if (!Array.isArray(existing)) existing = [];
-  } catch { /* 파일 없으면 새로 생성 */ }
-
-  existing.push(entry);
-  /* 최대 300개 유지 */
-  if (existing.length > MAX_ENTRIES) existing = existing.slice(-MAX_ENTRIES);
-
-  await file.save(JSON.stringify(existing), { contentType: "application/json", resumable: false });
-}
-
-async function loadChangelog(): Promise<ChangelogEntry[]> {
-  if (!BUCKET_ID) return [];
-  const file = makeStorage().bucket(BUCKET_ID).file(CHANGELOG_FILE);
-  try {
-    const [buf] = await file.download();
-    const arr = JSON.parse(buf.toString("utf-8")) as ChangelogEntry[];
-    return Array.isArray(arr) ? arr : [];
-  } catch { return []; }
-}
 
 /* ── 라우트 ── */
 
@@ -121,7 +77,19 @@ router.post("/admin-logout", (req: Request, res: Response) => {
 /* GET /api/admin/changelog  — 관리자 인증 필요 */
 router.get("/admin/changelog", requireAdmin, async (_req: Request, res: Response) => {
   try {
-    const entries = await loadChangelog();
+    const rows = await db
+      .select()
+      .from(schoolMapChangelog)
+      .orderBy(schoolMapChangelog.savedAt)
+      .limit(300);
+    const entries = rows.map(r => ({
+      at:             r.savedAt.toISOString(),
+      adminName:      r.adminName ?? "관리자",
+      schoolsAdded:   (r.schoolsAdded ?? []) as string[],
+      schoolsRemoved: (r.schoolsRemoved ?? []) as string[],
+      tobaccoAdded:   (r.tobaccoAdded ?? []) as string[],
+      tobaccoRemoved: (r.tobaccoRemoved ?? []) as string[],
+    }));
     res.json({ ok: true, entries: [...entries].reverse() }); // 최신순
   } catch (err) {
     res.status(500).json({ ok: false, error: String(err) });

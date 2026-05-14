@@ -185,6 +185,7 @@ async function appendChangelogDB(entry: {
   });
 }
 
+
 /* ── 캐시 워밍업: 서버 시작 직후 DB 데이터를 미리 로드 ── */
 loadFromDB()
   .then((data) => {
