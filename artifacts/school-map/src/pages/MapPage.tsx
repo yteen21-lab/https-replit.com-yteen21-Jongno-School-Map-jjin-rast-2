@@ -887,7 +887,7 @@ export default function MapPage() {
                   <SchoolIcon className="h-4 w-4 text-green-600 flex-shrink-0" />
                   <h1 className="text-xs font-bold text-slate-800 leading-tight">액상형 전자담배 매장 지도<br />(서울, 경기)</h1>
                 </div>
-                <p className="text-[9px] text-slate-400">서울시 전체 · 초중고</p>
+                <p className="text-[9px] text-slate-400">경기도 및 서울시 · 유치원, 초, 중, 고</p>
                 {violationCount > 0 && (
                   <div className="mt-1.5 bg-red-50 border border-red-200 rounded-lg px-2 py-1">
                     <p className="text-[9px] text-red-700 font-semibold">⚠️ 200m 이내 {violationCount}곳</p>
