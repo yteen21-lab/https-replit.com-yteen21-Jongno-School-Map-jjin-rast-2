@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { createHash } from "crypto";
 import { eq } from "drizzle-orm";
 import { Storage } from "@google-cloud/storage";
 import { db, schoolMapData, schoolMapChangelog } from "@workspace/db";
@@ -103,18 +104,22 @@ function deduplicateTobacco(tobacco: unknown[]): unknown[] {
   });
 }
 
-/* ── 메모리 캐시 (10분 TTL) ── */
-const CACHE_TTL = 10 * 60_000;
-let cache: { data: SharedData; fetchedAt: number } | null = null;
+/* ── 메모리 캐시 (24시간 TTL — 쓰기 시 즉시 갱신되므로 길게 설정) ── */
+const CACHE_TTL = 24 * 60 * 60_000;
+interface CacheEntry { data: SharedData; json: string; etag: string; fetchedAt: number; }
+let cache: CacheEntry | null = null;
 
-function getCached(): SharedData | null {
+function getCached(): CacheEntry | null {
   if (!cache) return null;
-  if (Date.now() - cache.fetchedAt > CACHE_TTL) return null;
-  return cache.data;
+  if (Date.now() - cache.fetchedAt > CACHE_TTL) { cache = null; return null; }
+  return cache;
 }
 
-function setCache(data: SharedData): void {
-  cache = { data, fetchedAt: Date.now() };
+function setCache(data: SharedData): CacheEntry {
+  const json = JSON.stringify(data);
+  const etag = `"${createHash("sha1").update(json).digest("hex").slice(0, 16)}"`;
+  cache = { data, json, etag, fetchedAt: Date.now() };
+  return cache;
 }
 
 /* ── PostgreSQL I/O ── */
@@ -196,23 +201,28 @@ loadFromDB()
   .catch(() => { /* 워밍업 실패는 무시 */ });
 
 /* ── 라우트 ── */
-router.get("/school-map-data", async (_req, res) => {
-  const cached = getCached();
-  if (cached) {
-    res.setHeader("Cache-Control", "public, max-age=30, stale-while-revalidate=300");
-    res.json(cached);
+router.get("/school-map-data", async (req, res) => {
+  let entry = getCached();
+
+  if (!entry) {
+    const data = await loadFromDB();
+    if (!data || (data.schools.length === 0 && data.tobacco.length === 0)) {
+      res.status(404).json({ error: "No shared data yet" });
+      return;
+    }
+    entry = setCache(data);
+  }
+
+  /* ETag — 데이터 미변경 시 304 반환 (본문 전송 없음, DB/직렬화 비용 0) */
+  if (req.headers["if-none-match"] === entry.etag) {
+    res.status(304).end();
     return;
   }
 
-  const data = await loadFromDB();
-  if (!data || (data.schools.length === 0 && data.tobacco.length === 0)) {
-    res.status(404).json({ error: "No shared data yet" });
-    return;
-  }
-
-  setCache(data);
-  res.setHeader("Cache-Control", "public, max-age=30, stale-while-revalidate=300");
-  res.json(data);
+  res.setHeader("ETag", entry.etag);
+  res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=3600");
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.send(entry.json); /* 사전 직렬화된 문자열 전송 */
 });
 
 router.post("/school-map-data", async (req, res) => {
@@ -230,7 +240,7 @@ router.post("/school-map-data", async (req, res) => {
     savedAt:  new Date().toISOString(),
   };
 
-  const prevData = getCached() ?? await loadFromDB();
+  const prevData = getCached()?.data ?? await loadFromDB();
 
   try {
     await saveToDB(data);
