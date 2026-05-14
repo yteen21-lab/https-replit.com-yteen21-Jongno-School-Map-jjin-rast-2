@@ -1297,7 +1297,7 @@ export default function MapPage() {
         {isAdmin && (
           <div
             className="absolute left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2"
-            style={{ bottom: isMobile ? `${MOBILE_SHEET_HANDLE_H + 10}px` : "1.5rem" }}
+            style={{ bottom: isMobile ? `${MOBILE_SHEET_HANDLE_H + 56}px` : "1.5rem" }}
           >
             <button
               onClick={() => { setAddSchoolMode((v) => !v); setAddTobaccoMode(false); }}
@@ -1331,7 +1331,7 @@ export default function MapPage() {
         {/* 관리자 모드 토글 버튼 + 자동 저장 상태 (좌하단) */}
         <div
           className="absolute left-4 z-[1000] flex items-center gap-2 flex-wrap"
-          style={{ bottom: isMobile ? `${MOBILE_SHEET_HANDLE_H + (isAdmin ? 56 : 10)}px` : "1.5rem" }}
+          style={{ bottom: isMobile ? `${MOBILE_SHEET_HANDLE_H + 10}px` : "1.5rem" }}
         >
           <button
             onClick={() => isAdmin ? handleAdminLogout() : setShowAdminModal(true)}
