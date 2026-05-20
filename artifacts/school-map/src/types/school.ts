@@ -181,16 +181,11 @@ export function approxMeters(lat1: number, lng1: number, lat2: number, lng2: num
  *   거리 없이 중복 처리하는 오탐을 방지합니다.
  */
 export function isSchoolDup(s: School, pool: School[]): boolean {
-  const sc = schoolCoreName(s.name);
   const nm = normalizeName(s.name);
   for (const e of pool) {
-    const ec = schoolCoreName(e.name);
     const en = normalizeName(e.name);
     const d  = approxMeters(s.lat, s.lng, e.lat, e.lng);
-    if (sc === ec && sc.length >= 2 && d <= 300) return true;  // ① 핵심 이름 + 300m
     if (nm === en && s.type === e.type && d <= 500) return true; // ② 정규화 이름 + 타입 + 500m
-    if (nm === en && d <= 80)           return true;             // ③ 정규화 이름 + 80m
-    if (d <= 30)                        return true;             // ④ 좌표 30m
   }
   return false;
 }
