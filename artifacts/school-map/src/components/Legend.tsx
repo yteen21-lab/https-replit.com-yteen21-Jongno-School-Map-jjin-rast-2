@@ -21,6 +21,7 @@ interface LegendProps {
   onToggleSchoolType: (type: SchoolType) => void;
   defaultCollapsed?: boolean;
   width?: number;
+  height?: number;
 }
 
 interface TooltipProps {
@@ -71,6 +72,7 @@ export default function Legend({
   onToggleSchoolType,
   defaultCollapsed = false,
   width,
+  height,
 }: LegendProps) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const schoolCounts = schools.reduce<Record<string, number>>((acc, s) => {
@@ -115,8 +117,11 @@ export default function Legend({
 
   return (
     <div
-      className="bg-white rounded-xl shadow-lg p-3 space-y-3 max-h-[85vh] overflow-y-auto"
-      style={width ? { width, minWidth: width } : { minWidth: 200 }}
+      className="bg-white rounded-xl shadow-lg p-3 space-y-3 overflow-y-auto"
+      style={{
+        ...(width ? { width, minWidth: width } : { minWidth: 200 }),
+        ...(height ? { height, maxHeight: height } : { maxHeight: "85vh" }),
+      }}
     >
       {/* 접기 버튼 */}
       <div className="flex items-center justify-between -mb-1">

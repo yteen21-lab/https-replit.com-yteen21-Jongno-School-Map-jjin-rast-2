@@ -27,6 +27,9 @@ const SIDEBAR_DEFAULT = 200;
 const LEGEND_MIN = 200;
 const LEGEND_MAX = 480;
 const LEGEND_DEFAULT = 260;
+const LEGEND_H_MIN = 120;
+const LEGEND_H_MAX = 900;
+const LEGEND_H_DEFAULT = 600;
 const MOBILE_SHEET_HANDLE_H = 52; // 모바일 바텀시트 핸들 영역 높이 (px)
 
 const STORAGE_KEY_SCHOOLS = "schoolMap_schools_v1";
@@ -363,7 +366,11 @@ export default function MapPage() {
   const isAdminRef = useRef(isAdmin);
   const isResizing = useRef(false);
   const isLegendResizing = useRef(false);
+  const isLegendResizingY = useRef(false);
+  const isLegendResizingCorner = useRef(false);
   const [legendWidth, setLegendWidth] = useState(LEGEND_DEFAULT);
+  const [legendHeight, setLegendHeight] = useState(LEGEND_H_DEFAULT);
+  const legendTopRef = useRef(16); // top-4 = 16px
   const touchStartY = useRef(0);
   /* 최신 상태를 handleSave에서 안전하게 읽기 위한 ref */
   const schoolsRef = useRef(schools);
@@ -518,14 +525,20 @@ export default function MapPage() {
         const newWidth = Math.min(Math.max(e.clientX, SIDEBAR_MIN), SIDEBAR_MAX);
         setSidebarWidth(newWidth);
       }
-      if (isLegendResizing.current) {
+      if (isLegendResizing.current || isLegendResizingCorner.current) {
         const newWidth = Math.min(Math.max(window.innerWidth - e.clientX - 16, LEGEND_MIN), LEGEND_MAX);
         setLegendWidth(newWidth);
+      }
+      if (isLegendResizingY.current || isLegendResizingCorner.current) {
+        const newHeight = Math.min(Math.max(e.clientY - legendTopRef.current, LEGEND_H_MIN), LEGEND_H_MAX);
+        setLegendHeight(newHeight);
       }
     };
     const onMouseUp = () => {
       isResizing.current = false;
       isLegendResizing.current = false;
+      isLegendResizingY.current = false;
+      isLegendResizingCorner.current = false;
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     };
@@ -1435,11 +1448,11 @@ export default function MapPage() {
             className="relative"
             style={!isMobile ? { width: legendWidth } : undefined}
           >
-            {/* 좌측 드래그 핸들 */}
+            {/* 좌측 드래그 핸들 (가로 리사이즈) */}
             {!isMobile && (
               <div
-                className="absolute left-0 top-0 h-full w-2 cursor-col-resize z-10 group"
-                style={{ left: -4 }}
+                className="absolute top-0 w-2 cursor-col-resize z-10 group"
+                style={{ left: -4, height: "calc(100% - 12px)" }}
                 onMouseDown={(e) => {
                   isLegendResizing.current = true;
                   document.body.style.cursor = "col-resize";
@@ -1455,6 +1468,47 @@ export default function MapPage() {
                 </div>
               </div>
             )}
+
+            {/* 하단 드래그 핸들 (세로 리사이즈) */}
+            {!isMobile && (
+              <div
+                className="absolute bottom-0 left-3 right-3 h-2 cursor-row-resize z-10 group"
+                style={{ bottom: -4 }}
+                onMouseDown={(e) => {
+                  isLegendResizingY.current = true;
+                  legendTopRef.current = 16;
+                  document.body.style.cursor = "row-resize";
+                  document.body.style.userSelect = "none";
+                  e.preventDefault();
+                }}
+              >
+                <div className="w-full h-full bg-transparent group-hover:bg-blue-400/30 transition-colors rounded-full" />
+                <div className="absolute left-1/2 -translate-x-1/2 top-0 flex flex-row gap-0.5 pointer-events-none">
+                  {[0,1,2].map(i => (
+                    <div key={i} className="h-0.5 w-3 bg-slate-300 group-hover:bg-blue-400 rounded-full transition-colors" />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 좌하단 코너 핸들 (가로+세로 동시 리사이즈) */}
+            {!isMobile && (
+              <div
+                className="absolute w-3 h-3 cursor-sw-resize z-20 group"
+                style={{ left: -4, bottom: -4 }}
+                onMouseDown={(e) => {
+                  isLegendResizingCorner.current = true;
+                  legendTopRef.current = 16;
+                  document.body.style.cursor = "sw-resize";
+                  document.body.style.userSelect = "none";
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+              >
+                <div className="w-full h-full rounded-bl-md bg-slate-200 group-hover:bg-blue-400/60 transition-colors" />
+              </div>
+            )}
+
             <Legend
               schools={schools}
               tobaccoShops={tobaccoShops}
@@ -1482,6 +1536,7 @@ export default function MapPage() {
               }
               defaultCollapsed={isMobile}
               width={!isMobile ? legendWidth : undefined}
+              height={!isMobile ? legendHeight : undefined}
             />
           </div>
         </div>
