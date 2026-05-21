@@ -938,6 +938,7 @@ export default function MapPage() {
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400" />
                 <input
                   type="text"
+                  autoComplete="off"
                   value={searchQuery}
                   onChange={(e) => { setSearchQuery(e.target.value); setActiveTab("list"); }}
                   placeholder="학교명, 매장명"
@@ -1253,6 +1254,7 @@ export default function MapPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <input
                 type="text"
+                autoComplete="off"
                 value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value); if (isMobile) setSidebarOpen(true); }}
                 placeholder="학교명, 매장명"
@@ -1342,7 +1344,7 @@ export default function MapPage() {
           style={{ bottom: isMobile ? `${MOBILE_SHEET_HANDLE_H + 10}px` : "1.5rem" }}
         >
           <button
-            onClick={() => isAdmin ? handleAdminLogout() : setShowAdminModal(true)}
+            onClick={() => isAdmin ? handleAdminLogout() : (setSearchQuery(""), setShowAdminModal(true))}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold shadow-md transition-all border ${
               isAdmin
                 ? "bg-amber-500 text-white border-amber-600 hover:bg-amber-600"
