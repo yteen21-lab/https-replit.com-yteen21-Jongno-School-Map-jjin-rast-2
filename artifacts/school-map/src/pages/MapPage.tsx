@@ -24,6 +24,9 @@ import AdminDashboard from "@/components/AdminDashboard";
 const SIDEBAR_MIN = 140;
 const SIDEBAR_MAX = 400;
 const SIDEBAR_DEFAULT = 200;
+const LEGEND_MIN = 200;
+const LEGEND_MAX = 480;
+const LEGEND_DEFAULT = 260;
 const MOBILE_SHEET_HANDLE_H = 52; // 모바일 바텀시트 핸들 영역 높이 (px)
 
 const STORAGE_KEY_SCHOOLS = "schoolMap_schools_v1";
@@ -359,6 +362,8 @@ export default function MapPage() {
   const dataInitialized = useRef(false);
   const isAdminRef = useRef(isAdmin);
   const isResizing = useRef(false);
+  const isLegendResizing = useRef(false);
+  const [legendWidth, setLegendWidth] = useState(LEGEND_DEFAULT);
   const touchStartY = useRef(0);
   /* 최신 상태를 handleSave에서 안전하게 읽기 위한 ref */
   const schoolsRef = useRef(schools);
@@ -509,11 +514,21 @@ export default function MapPage() {
 
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
-      if (!isResizing.current) return;
-      const newWidth = Math.min(Math.max(e.clientX, SIDEBAR_MIN), SIDEBAR_MAX);
-      setSidebarWidth(newWidth);
+      if (isResizing.current) {
+        const newWidth = Math.min(Math.max(e.clientX, SIDEBAR_MIN), SIDEBAR_MAX);
+        setSidebarWidth(newWidth);
+      }
+      if (isLegendResizing.current) {
+        const newWidth = Math.min(Math.max(window.innerWidth - e.clientX - 16, LEGEND_MIN), LEGEND_MAX);
+        setLegendWidth(newWidth);
+      }
     };
-    const onMouseUp = () => { isResizing.current = false; document.body.style.cursor = ""; document.body.style.userSelect = ""; };
+    const onMouseUp = () => {
+      isResizing.current = false;
+      isLegendResizing.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
     return () => { window.removeEventListener("mousemove", onMouseMove); window.removeEventListener("mouseup", onMouseUp); };
@@ -1415,33 +1430,60 @@ export default function MapPage() {
             />
           )}
 
-          <Legend
-            schools={schools}
-            tobaccoShops={tobaccoShops}
-            showRadius50={showRadius50}
-            showRadius200={showRadius200}
-            showTobacco={showTobacco}
-            showMuIn={showMuIn}
-            showYuIn={showYuIn}
-            activeZonePanel={activeZonePanel}
-            visibleSchoolTypes={visibleSchoolTypes}
-            onToggleRadius50={() => setShowRadius50((v) => !v)}
-            onToggleRadius200={() => setShowRadius200((v) => !v)}
-            onToggleTobacco={() => setShowTobacco((v) => !v)}
-            onToggleMuIn={() => setShowMuIn((v) => !v)}
-            onToggleYuIn={() => setShowYuIn((v) => !v)}
-            onOpenZonePanel={(zone) =>
-              setActiveZonePanel((prev) => prev === zone ? null : zone)
-            }
-            onToggleSchoolType={(type) =>
-              setVisibleSchoolTypes((prev) => {
-                const next = new Set(prev);
-                if (next.has(type)) next.delete(type); else next.add(type);
-                return next;
-              })
-            }
-            defaultCollapsed={isMobile}
-          />
+          {/* 리사이즈 가능한 Legend 래퍼 — 데스크톱만 */}
+          <div
+            className="relative"
+            style={!isMobile ? { width: legendWidth } : undefined}
+          >
+            {/* 좌측 드래그 핸들 */}
+            {!isMobile && (
+              <div
+                className="absolute left-0 top-0 h-full w-2 cursor-col-resize z-10 group"
+                style={{ left: -4 }}
+                onMouseDown={(e) => {
+                  isLegendResizing.current = true;
+                  document.body.style.cursor = "col-resize";
+                  document.body.style.userSelect = "none";
+                  e.preventDefault();
+                }}
+              >
+                <div className="h-full w-full bg-transparent group-hover:bg-blue-400/30 transition-colors rounded-full" />
+                <div className="absolute top-1/2 -translate-y-1/2 left-0 flex flex-col gap-0.5 pl-[1px] pointer-events-none">
+                  {[0,1,2].map(i => (
+                    <div key={i} className="w-0.5 h-3 bg-slate-300 group-hover:bg-blue-400 rounded-full transition-colors" />
+                  ))}
+                </div>
+              </div>
+            )}
+            <Legend
+              schools={schools}
+              tobaccoShops={tobaccoShops}
+              showRadius50={showRadius50}
+              showRadius200={showRadius200}
+              showTobacco={showTobacco}
+              showMuIn={showMuIn}
+              showYuIn={showYuIn}
+              activeZonePanel={activeZonePanel}
+              visibleSchoolTypes={visibleSchoolTypes}
+              onToggleRadius50={() => setShowRadius50((v) => !v)}
+              onToggleRadius200={() => setShowRadius200((v) => !v)}
+              onToggleTobacco={() => setShowTobacco((v) => !v)}
+              onToggleMuIn={() => setShowMuIn((v) => !v)}
+              onToggleYuIn={() => setShowYuIn((v) => !v)}
+              onOpenZonePanel={(zone) =>
+                setActiveZonePanel((prev) => prev === zone ? null : zone)
+              }
+              onToggleSchoolType={(type) =>
+                setVisibleSchoolTypes((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(type)) next.delete(type); else next.add(type);
+                  return next;
+                })
+              }
+              defaultCollapsed={isMobile}
+              width={!isMobile ? legendWidth : undefined}
+            />
+          </div>
         </div>
 
         {/* 모바일: ZoneShopPanel을 하단 오버레이로 표시 */}

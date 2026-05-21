@@ -20,6 +20,7 @@ interface LegendProps {
   onOpenZonePanel: (zone: "50m" | "200m") => void;
   onToggleSchoolType: (type: SchoolType) => void;
   defaultCollapsed?: boolean;
+  width?: number;
 }
 
 interface TooltipProps {
@@ -69,6 +70,7 @@ export default function Legend({
   onOpenZonePanel,
   onToggleSchoolType,
   defaultCollapsed = false,
+  width,
 }: LegendProps) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const schoolCounts = schools.reduce<Record<string, number>>((acc, s) => {
@@ -112,7 +114,10 @@ export default function Legend({
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-3 space-y-3 min-w-[200px] max-h-[85vh] overflow-y-auto">
+    <div
+      className="bg-white rounded-xl shadow-lg p-3 space-y-3 max-h-[85vh] overflow-y-auto"
+      style={width ? { width, minWidth: width } : { minWidth: 200 }}
+    >
       {/* 접기 버튼 */}
       <div className="flex items-center justify-between -mb-1">
         <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
