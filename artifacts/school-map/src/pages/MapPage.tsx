@@ -1320,7 +1320,15 @@ export default function MapPage() {
                   : "bg-white text-slate-700 border border-slate-200 hover:bg-purple-50"
               }`}
             >
-              🚬
+              <svg width="16" height="16" viewBox="0 0 32 32" fill="none" style={{flexShrink:0}}>
+                <rect x="3" y="13" width="18" height="7" rx="3.5" fill="currentColor" opacity="0.9"/>
+                <rect x="5" y="15.5" width="5" height="4" rx="1" fill="currentColor" opacity="0.35"/>
+                <rect x="11" y="15.5" width="2" height="4" rx="0.8" fill="currentColor" opacity="0.35"/>
+                <rect x="21" y="14.5" width="5" height="4" rx="2" fill="currentColor" opacity="0.7"/>
+                <rect x="2" y="15.5" width="1.5" height="3" rx="0.5" fill="currentColor" opacity="0.5"/>
+                <path d="M27.5 12 Q29 10 27.5 8 Q26 6 28 4.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.7" fill="none"/>
+                <path d="M25 11 Q26.5 9 25 7.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.5" fill="none"/>
+              </svg>
               {addTobaccoMode
                 ? (isMobile ? "📍 위치 클릭 (재탭 해제)" : "📍 담배샵 위치를 클릭하세요 (재클릭 해제)")
                 : "전자담배샵 추가"}
