@@ -224,7 +224,16 @@ export default function Legend({
             showTobacco ? "bg-orange-50 text-orange-700" : "text-slate-400"
           }`}
         >
-          <span className="flex-shrink-0 w-4 h-4 rounded-sm border-2 border-orange-400 bg-orange-100 flex items-center justify-center text-[9px]">🚬</span>
+          <span className="flex-shrink-0 w-4 h-4 rounded-sm border-2 border-orange-400 bg-orange-100 flex items-center justify-center">
+            <svg width="10" height="10" viewBox="0 0 32 32" fill="none">
+              <rect x="3" y="13" width="18" height="7" rx="3.5" fill="#ea580c" opacity="0.9"/>
+              <rect x="5" y="15.5" width="5" height="4" rx="1" fill="#ea580c" opacity="0.4"/>
+              <rect x="11" y="15.5" width="2" height="4" rx="0.8" fill="#ea580c" opacity="0.4"/>
+              <rect x="21" y="14.5" width="5" height="4" rx="2" fill="#ea580c" opacity="0.6"/>
+              <path d="M27.5 12 Q29 10 27.5 8 Q26 6 28 4.5" stroke="#ea580c" strokeWidth="1.4" strokeLinecap="round" opacity="0.7" fill="none"/>
+              <path d="M25 11 Q26.5 9 25 7.5" stroke="#ea580c" strokeWidth="1.2" strokeLinecap="round" opacity="0.5" fill="none"/>
+            </svg>
+          </span>
           <span>액상형 전자담배 매장 표시</span>
           {showTobacco
             ? <span className="ml-auto text-xs font-semibold">ON</span>
@@ -252,7 +261,15 @@ export default function Legend({
                   color: showMuIn ? "white" : "#94a3b8",
                 }}
               >
-                🚬
+                <svg width="13" height="13" viewBox="0 0 32 32" fill="none">
+                  <rect x="3" y="13" width="18" height="7" rx="3.5" fill="currentColor" opacity="0.95"/>
+                  <rect x="5" y="15.5" width="5" height="4" rx="1" fill="currentColor" opacity="0.35"/>
+                  <rect x="11" y="15.5" width="2" height="4" rx="0.8" fill="currentColor" opacity="0.35"/>
+                  <rect x="21" y="14.5" width="5" height="4" rx="2" fill="currentColor" opacity="0.7"/>
+                  <rect x="2" y="15.5" width="1.5" height="3" rx="0.5" fill="currentColor" opacity="0.5"/>
+                  <path d="M27.5 12 Q29 10 27.5 8 Q26 6 28 4.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.7" fill="none"/>
+                  <path d="M25 11 Q26.5 9 25 7.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.5" fill="none"/>
+                </svg>
               </span>
               <span className="font-medium">무인자판기 매장</span>
               <span className="ml-auto font-mono text-slate-400">{muInShops.length}</span>
