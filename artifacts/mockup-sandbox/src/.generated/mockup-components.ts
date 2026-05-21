@@ -7,5 +7,6 @@ export const modules: ModuleMap = {
   "./components/mockups/tobacco-markers/StyleC.tsx": () => import("../components/mockups/tobacco-markers/StyleC.tsx"),
   "./components/mockups/tobacco-markers/StyleD.tsx": () => import("../components/mockups/tobacco-markers/StyleD.tsx"),
   "./components/mockups/tobacco-markers/StyleE.tsx": () => import("../components/mockups/tobacco-markers/StyleE.tsx"),
-  "./components/mockups/tobacco-markers/StyleF.tsx": () => import("../components/mockups/tobacco-markers/StyleF.tsx")
+  "./components/mockups/tobacco-markers/StyleF.tsx": () => import("../components/mockups/tobacco-markers/StyleF.tsx"),
+  "./components/mockups/tobacco-markers/VapeIcon.tsx": () => import("../components/mockups/tobacco-markers/VapeIcon.tsx")
 };
