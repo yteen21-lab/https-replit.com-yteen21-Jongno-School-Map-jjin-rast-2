@@ -2,7 +2,7 @@
  * 전략: HTML은 항상 네트워크 우선 (Vite 해시 번들 변경 대응)
  * 카카오 지도·API 서버는 캐시하지 않음 (동적 데이터). */
 
-const CACHE_NAME = 'yp-tobacco-map-v3';
+const CACHE_NAME = 'yp-tobacco-map-v4';
 const STATIC_ASSETS = [
   '/manifest.json',
   '/icon-192.png',
