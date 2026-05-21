@@ -1323,7 +1323,7 @@ export default function MapPage() {
               🚬
               {addTobaccoMode
                 ? (isMobile ? "📍 위치 클릭 (재탭 해제)" : "📍 담배샵 위치를 클릭하세요 (재클릭 해제)")
-                : "담배샵 추가"}
+                : "전자담배샵 추가"}
             </button>
           </div>
         )}
