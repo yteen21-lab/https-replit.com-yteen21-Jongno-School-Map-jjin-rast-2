@@ -21,7 +21,7 @@ interface LegendProps {
   onToggleSchoolType: (type: SchoolType) => void;
   defaultCollapsed?: boolean;
   width?: number;
-  height?: number;
+  height?: number | null;
 }
 
 interface TooltipProps {
@@ -120,7 +120,7 @@ export default function Legend({
       className="bg-white rounded-xl shadow-lg p-3 space-y-3 overflow-y-auto"
       style={{
         ...(width ? { width, minWidth: width } : { minWidth: 200 }),
-        ...(height ? { height, maxHeight: height } : { maxHeight: "85vh" }),
+        ...(height != null ? { height, maxHeight: height } : { maxHeight: "85vh" }),
       }}
     >
       {/* 접기 버튼 */}

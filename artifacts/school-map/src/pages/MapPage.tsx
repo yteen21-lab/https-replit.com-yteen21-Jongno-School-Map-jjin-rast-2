@@ -29,7 +29,6 @@ const LEGEND_MAX = 480;
 const LEGEND_DEFAULT = 260;
 const LEGEND_H_MIN = 120;
 const LEGEND_H_MAX = 900;
-const LEGEND_H_DEFAULT = 600;
 const MOBILE_SHEET_HANDLE_H = 52; // 모바일 바텀시트 핸들 영역 높이 (px)
 
 const STORAGE_KEY_SCHOOLS = "schoolMap_schools_v1";
@@ -369,7 +368,7 @@ export default function MapPage() {
   const isLegendResizingY = useRef(false);
   const isLegendResizingCorner = useRef(false);
   const [legendWidth, setLegendWidth] = useState(LEGEND_DEFAULT);
-  const [legendHeight, setLegendHeight] = useState(LEGEND_H_DEFAULT);
+  const [legendHeight, setLegendHeight] = useState<number | null>(null);
   const legendTopRef = useRef(16); // top-4 = 16px
   const touchStartY = useRef(0);
   /* 최신 상태를 handleSave에서 안전하게 읽기 위한 ref */
@@ -1536,7 +1535,7 @@ export default function MapPage() {
               }
               defaultCollapsed={isMobile}
               width={!isMobile ? legendWidth : undefined}
-              height={!isMobile ? legendHeight : undefined}
+              height={!isMobile ? legendHeight ?? undefined : undefined}
             />
           </div>
         </div>
