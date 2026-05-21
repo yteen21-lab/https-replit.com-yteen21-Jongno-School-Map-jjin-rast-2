@@ -255,7 +255,7 @@ function DistrictPanel({ school, allSchools, tobaccoShops, onClose, onEdit, onDe
               ))}
               <div className="flex items-center justify-between bg-white rounded-md px-2.5 py-1.5 shadow-sm">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[10px]">🏪</span>
+                  <span className="text-[10px]">🏬</span>
                   <span className="text-[10px] text-slate-600">전체</span>
                 </div>
                 <span className="text-sm font-bold text-slate-800">{distTobacco.length}</span>
@@ -1024,7 +1024,7 @@ export default function MapPage() {
                                 }`}
                               >
                                 <span className="flex items-center gap-2">
-                                  <span className="text-[10px]">{isYuIn ? "🏪" : "🚬"}</span>
+                                  <span className="text-[10px]">{isYuIn ? "🏬" : "🚬"}</span>
                                   <span className="text-[11px] leading-tight">
                                     {highlight(shop.name, searchQuery)}
                                   </span>

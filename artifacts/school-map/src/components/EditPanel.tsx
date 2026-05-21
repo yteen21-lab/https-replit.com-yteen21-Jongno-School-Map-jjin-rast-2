@@ -196,7 +196,7 @@ export default function EditPanel({
                           : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
                       }`}
                     >
-                      {t === "무인" ? "🚬 무인자판기" : "🏪 유인매장"}
+                      {t === "무인" ? "🚬 무인자판기" : "🏬 유인매장"}
                     </button>
                   ))}
                 </div>

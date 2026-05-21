@@ -278,7 +278,7 @@ export default function Legend({
                   color: showYuIn ? "white" : "#94a3b8",
                 }}
               >
-                🏪
+                🏬
               </span>
               <span className="font-medium">오프라인 매장</span>
               <span className="ml-auto font-mono text-slate-400">{yuInShops.length}</span>

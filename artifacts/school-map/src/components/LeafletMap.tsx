@@ -457,7 +457,7 @@ export default function LeafletMap({
                   <input type="radio" name="tp-type" value="무인" checked style="accent-color:#475569;width:14px;height:14px;" /> 🚬 무인
                 </label>
                 <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;">
-                  <input type="radio" name="tp-type" value="유인" style="accent-color:#7C3AED;width:14px;height:14px;" /> 🏪 유인
+                  <input type="radio" name="tp-type" value="유인" style="accent-color:#7C3AED;width:14px;height:14px;" /> 🏬 유인
                 </label>
               </div>
             </div>
@@ -823,7 +823,18 @@ export default function LeafletMap({
       const isUnmanned = shop.shopType !== "유인";
       const shopTypeLabel = isUnmanned ? "무인" : "유인";
       const shopTypeColor = isUnmanned ? "#475569" : "#7C3AED";
-      const shopEmoji = isUnmanned ? "🚬" : "🏪";
+      const shopIcon = isUnmanned
+        ? `<svg width="16" height="16" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="3" y="13" width="18" height="7" rx="3.5" fill="white" opacity="0.95"/>
+            <rect x="5" y="15.5" width="5" height="4" rx="1" fill="white" opacity="0.35"/>
+            <rect x="11" y="15.5" width="2" height="4" rx="0.8" fill="white" opacity="0.35"/>
+            <rect x="21" y="14.5" width="5" height="4" rx="2" fill="white" opacity="0.7"/>
+            <rect x="2" y="15.5" width="1.5" height="3" rx="0.5" fill="white" opacity="0.5"/>
+            <path d="M27.5 12 Q29 10 27.5 8 Q26 6 28 4.5" stroke="white" stroke-width="1.4" stroke-linecap="round" opacity="0.7" fill="none"/>
+            <path d="M25 11 Q26.5 9 25 7.5" stroke="white" stroke-width="1.2" stroke-linecap="round" opacity="0.5" fill="none"/>
+            <path d="M29 13 Q30.5 11.5 29 10" stroke="white" stroke-width="1" stroke-linecap="round" opacity="0.4" fill="none"/>
+           </svg>`
+        : `<span style="font-size:14px;line-height:1;">🏬</span>`;
       const shortName = shop.name
         .replace("무인전자담배 ", "")
         .replace("무인담배 ", "")
@@ -841,8 +852,7 @@ export default function LeafletMap({
             width:28px;height:28px;background:${color};border:3px solid white;
             border-radius:6px;box-shadow:0 3px 8px rgba(0,0,0,0.5);
             display:flex;align-items:center;justify-content:center;
-            font-size:14px;line-height:1;
-          ">${shopEmoji}</div>
+          ">${shopIcon}</div>
           <div style="
             position:absolute;top:-6px;right:-8px;
             background:${shopTypeColor};color:white;
@@ -889,7 +899,7 @@ export default function LeafletMap({
           <div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#1e293b;padding-right:20px;">${shop.name}</div>
           <div style="margin-bottom:6px;">
             <span style="display:inline-block;background:${shopTypeColor};color:white;font-size:10px;font-weight:700;border-radius:4px;padding:2px 6px;">
-              ${isUnmanned ? "🚬 무인자판기 매장" : "🏪 오프라인 매장"}
+              ${isUnmanned ? "⚡ 무인자판기 매장" : "🏬 오프라인 매장"}
             </span>
           </div>
           ${shop.address ? `<p style="font-size:11px;color:#64748b;margin:0 0 6px;">${shop.address}</p>` : ""}

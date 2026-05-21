@@ -909,7 +909,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
             <div className="flex gap-1.5">
               {([
                 { value: "auto",  label: "🔍 자동 감지",     desc: "컬럼·이름으로 판별" },
-                { value: "유인",  label: "🏪 전체 오프라인",  desc: "모두 오프라인매장" },
+                { value: "유인",  label: "🏬 전체 오프라인",  desc: "모두 오프라인매장" },
                 { value: "무인",  label: "🚬 전체 무인자판기", desc: "모두 무인자판기" },
               ] as const).map(({ value, label, desc }) => (
                 <button
@@ -988,7 +988,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
                 )}
               </div>
               {tobaccoSuccess.total > 0 && (
-                <p className="text-[10px] text-slate-500">🚬 무인 {tobaccoSuccess.muIn}개 · 🏪 유인 {tobaccoSuccess.yuIn}개</p>
+                <p className="text-[10px] text-slate-500">🚬 무인 {tobaccoSuccess.muIn}개 · 🏬 유인 {tobaccoSuccess.yuIn}개</p>
               )}
               {tobaccoSuccess.skipped > 0 && (
                 <p className="text-[10px] text-slate-400">↩ 중복 건너뜀 {tobaccoSuccess.skipped}개 — 기존 데이터 유지됨</p>
@@ -1014,7 +1014,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
               <p className="text-slate-400">컬럼명: <span className="font-mono">매장유형 / 운영유형 / 유형구분 / 구분</span></p>
               <div className="mt-1 space-y-0.5">
                 <div className="flex items-start gap-1">
-                  <span className="text-[9px] font-bold text-slate-500 w-3 flex-shrink-0 mt-0.5">🏪</span>
+                  <span className="text-[9px] font-bold text-slate-500 w-3 flex-shrink-0 mt-0.5">🏬</span>
                   <div>
                     <p className="font-semibold text-purple-600">오프라인매장 → 유인</p>
                     <p className="text-slate-400 flex items-center gap-1">값:
@@ -1037,7 +1037,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
             <div className="mt-1.5 pt-1.5 border-t border-slate-200 space-y-0.5">
               <p className="font-semibold text-slate-500">컬럼 없을 시 이름 자동 감지</p>
               <p>• 🚬 <span className="font-mono">"무인"·"자판기"·"키오스크"</span> 포함 → 무인</p>
-              <p>• 🏪 <span className="font-mono">"오프라인"·"편의점"·"마트"</span> 포함 → 유인</p>
+              <p>• 🏬 <span className="font-mono">"오프라인"·"편의점"·"마트"</span> 포함 → 유인</p>
               <p className="text-slate-400">그 외 불명확 → <span className="bg-white border border-slate-300 text-slate-700 rounded px-1">오프라인매장</span> (기본값)</p>
             </div>
           </div>
