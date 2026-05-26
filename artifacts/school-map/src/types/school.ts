@@ -1,4 +1,4 @@
-export type SchoolType = "유치원" | "초등학교" | "중학교" | "고등학교" | "기타";
+export type SchoolType = "초등학교" | "중학교" | "고등학교" | "기타";
 export type TobaccoZone = "50m이내" | "200m이내" | "외부";
 
 export interface School {
@@ -28,7 +28,6 @@ export interface CircleConfig {
 }
 
 export const SCHOOL_TYPE_COLORS: Record<SchoolType, string> = {
-  유치원:   "#F59E0B",
   초등학교: "#2563EB",
   중학교:   "#16A34A",
   고등학교: "#DC2626",
@@ -142,7 +141,6 @@ export function schoolCoreName(name: string): string {
 
   // 타입 정규화 (긴 표현 먼저)
   n = n
-    .replace(/유치원$/, "유치")
     .replace(/초등학교$/, "초").replace(/초교$/, "초")
     .replace(/중학교$/, "중").replace(/중교$/, "중")
     .replace(/고등학교$/, "고").replace(/고교$/, "고");

@@ -60,10 +60,6 @@ function autoDetectShopType(name: string, rawTypeCol: string): "무인" | "유�
 }
 
 const SCHOOL_TYPE_MAP: Record<string, SchoolType> = {
-  유치: "유치원",
-  유치원: "유치원",
-  kindergarten: "유치원",
-  kinder: "유치원",
   초: "초등학교",
   초등: "초등학교",
   초등학교: "초등학교",
@@ -93,7 +89,6 @@ function detectSchoolType(name: string, typeStr?: string, address?: string): Sch
   if (typeStr) {
     const t = typeStr.trim().toLowerCase();
     /* 각종학교(초), 각종학교(중), 각종학교(고) 처리 */
-    if (t.includes("유치"))                                    return "유치원";
     if (/각종.{0,4}초/.test(t) || t.includes("초등"))        return "초등학교";
     if (/각종.{0,4}중/.test(t) || t.includes("중학"))        return "중학교";
     if (/각종.{0,4}고/.test(t) || t.includes("고등"))        return "고등학교";
@@ -108,7 +103,6 @@ function detectSchoolType(name: string, typeStr?: string, address?: string): Sch
   const combined = `${name} ${address ?? ""}`;
 
   /* 정식 표기: 이 단어들이 있으면 100% 확정 */
-  if (combined.includes("유치원"))   return "유치원";
   if (combined.includes("초등학교")) return "초등학교";
   if (combined.includes("중학교"))   return "중학교";
   if (combined.includes("고등학교")) return "고등학교";
@@ -371,7 +365,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
               candidates.some((c) => k.trim().toLowerCase().includes(c.toLowerCase()))
             );
 
-          const nameKey = findKey("유치원명", "원명", "학교명", "학교 명", "name", "학교", "이름", "명칭", "학교이름");
+          const nameKey = findKey("학교명", "학교 명", "name", "학교", "이름", "명칭", "학교이름");
 
           /* ── 좌표 열 탐지: 합산 열을 먼저 확인 ──────────────────────────
            * "위도,경도" 같은 열 이름은 "위도" / "경도" 키워드도 포함하므로
@@ -781,17 +775,15 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
           {/* 학교 구분 강제 지정 */}
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 space-y-1.5">
             <p className="text-[10px] font-semibold text-slate-600">업로드 학교 구분 지정</p>
-            <div className="grid grid-cols-3 gap-1">
+            <div className="grid grid-cols-2 gap-1">
               {([
-                { value: "auto",   label: "🔍 자동 감지",  desc: "이름·컬럼으로 판별" },
-                { value: "유치원", label: "🏫 유치원",      desc: "전체 유치원" },
-                { value: "초등학교", label: "🏫 초등학교",  desc: "전체 초등" },
+                { value: "auto",     label: "🔍 자동 감지",  desc: "이름·컬럼으로 판별" },
+                { value: "초등학교", label: "🏫 초등학교",   desc: "전체 초등" },
               ] as const).map(({ value, label, desc }) => (
                 <button key={value} onClick={() => setSchoolTypeOverride(value)}
                   className={`rounded-md border py-1.5 px-1 text-center transition-all ${
                     schoolTypeOverride === value
-                      ? value === "유치원" ? "bg-amber-100 border-amber-400 text-amber-700"
-                        : value === "초등학교" ? "bg-blue-100 border-blue-400 text-blue-700"
+                      ? value === "초등학교" ? "bg-blue-100 border-blue-400 text-blue-700"
                         : "bg-green-100 border-green-400 text-green-700"
                       : "bg-white border-slate-200 text-slate-500 hover:bg-slate-100"
                   }`}>
@@ -888,7 +880,7 @@ export default function ExcelUploader({ onSchoolsLoaded, onTobaccoShopsLoaded, e
 
           <div className="bg-slate-50 rounded-lg p-2 text-[10px] text-slate-500 space-y-0.5">
             <p className="font-semibold text-slate-600">컬럼 안내</p>
-            <p>• 이름: <span className="font-mono">유치원명 / 학교명 / 이름 / name</span></p>
+            <p>• 이름: <span className="font-mono">학교명 / 이름 / name</span></p>
             <p>• 위치 <span className="text-green-700 font-semibold">(택1)</span></p>
             <p className="pl-2">① 분리: <span className="font-mono">위도</span> + <span className="font-mono">경도</span> (별도 열)</p>
             <p className="pl-2">② 합산: <span className="font-mono">좌표</span> 한 열에 <span className="font-mono">37.56,126.97</span> 형식</p>

@@ -27,7 +27,7 @@ interface LeafletMapProps {
 
 const SEOUL_CENTER = { lat: 37.5665, lng: 126.9780 };
 const SEOUL_LEVEL = 8;
-const SCHOOL_TYPE_PRIORITY = ["유치원", "초등학교", "중학교", "고등학교", "기타"];
+const SCHOOL_TYPE_PRIORITY = ["초등학교", "중학교", "고등학교", "기타"];
 
 /* 줌 레벨별 클러스터 반경 (Kakao: 1=가장 확대, 14=가장 축소) */
 function getClusterThreshold(level: number): number {
@@ -94,7 +94,6 @@ function groupNearbySchools(schools: School[], threshold = CLUSTER_THRESHOLD_M):
 /* ── 카카오 Places 카테고리에서 학교 구분 감지 ── */
 function detectTypeFromCategory(categoryName: string, placeName: string): SchoolType {
   const cat = categoryName + " " + placeName;
-  if (cat.includes("유치원")) return "유치원";
   if (cat.includes("초등학교") || /초$/.test(placeName) || cat.includes("초교")) return "초등학교";
   if (cat.includes("중학교") || /중$/.test(placeName)) return "중학교";
   if (cat.includes("고등학교") || /고$/.test(placeName) || cat.includes("고교")) return "고등학교";
@@ -232,7 +231,7 @@ function renderManualForm(
   closePicker: () => void,
   onAddSchoolRef: MutableRefObject<((s: Omit<School, "id">) => void) | undefined>,
 ) {
-  const typeOptions = ["유치원", "초등학교", "중학교", "고등학교", "기타"]
+  const typeOptions = ["초등학교", "중학교", "고등학교", "기타"]
     .map(t => `<option value="${t}">${t}</option>`).join("");
   picker.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
@@ -630,7 +629,7 @@ export default function LeafletMap({
 
       /* ── 점 모드: 작은 색상 점만 표시 (원·라벨 생략) ── */
       if (isDotMode) {
-        const primaryType = SCHOOL_TYPE_PRIORITY.find(t => group.some(sc => sc.type === t)) ?? group[0].type;
+        const primaryType = (SCHOOL_TYPE_PRIORITY.find(t => group.some(sc => sc.type === t)) ?? group[0].type) as SchoolType;
         const dotColor = SCHOOL_TYPE_COLORS[primaryType];
         const dotSize = isCluster ? Math.min(6 + group.length, 12) : 6;
         const dot = document.createElement("div");

@@ -374,7 +374,7 @@ export default function AdminDashboard({ schools, tobaccoShops, token, onClose, 
               {/* 학교 유형 */}
               <Section title="학교 유형별">
                 <div className="flex flex-wrap gap-2">
-                  {(["유치원","초등학교","중학교","고등학교","기타"] as SchoolType[]).map(t => (
+                  {(["초등학교","중학교","고등학교","기타"] as SchoolType[]).map(t => (
                     <span key={t} className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold text-white"
                       style={{ backgroundColor: SCHOOL_TYPE_COLORS[t] }}>
                       {t} {schoolTypeCounts[t] ?? 0}
