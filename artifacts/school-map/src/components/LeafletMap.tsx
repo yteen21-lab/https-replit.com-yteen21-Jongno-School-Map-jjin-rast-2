@@ -29,6 +29,9 @@ const SEOUL_CENTER = { lat: 37.5665, lng: 126.9780 };
 const SEOUL_LEVEL = 8;
 const SCHOOL_TYPE_PRIORITY = ["초등학교", "중학교", "고등학교", "기타"];
 
+/* 이 레벨 이상(축소): 구/시 단위 집계 버블 표시 */
+const DISTRICT_MODE_LEVEL = 7;
+
 /* 줌 레벨별 클러스터 반경 (Kakao: 1=가장 확대, 14=가장 축소) */
 function getClusterThreshold(level: number): number {
   if (level >= 12) return 5000;
@@ -65,6 +68,15 @@ function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number)
   const Δλ = (lng2 - lng1) * Math.PI / 180;
   const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
   return R * 2 * Math.asin(Math.sqrt(a));
+}
+
+/* ── 주소에서 구·시 단위 지역 정보 추출 ── */
+function parseDistrict(address: string): { name: string; region: "seoul" | "gyeonggi" } | null {
+  const seoulMatch = address.match(/서울(?:특별시)?\s*([가-힣]+구)/);
+  if (seoulMatch) return { name: seoulMatch[1], region: "seoul" };
+  const gyeonggiMatch = address.match(/경기(?:도)?\s*([가-힣]+시)/);
+  if (gyeonggiMatch) return { name: gyeonggiMatch[1], region: "gyeonggi" };
+  return null;
 }
 
 function groupNearbySchools(schools: School[], threshold = CLUSTER_THRESHOLD_M): School[][] {
@@ -794,24 +806,75 @@ export default function LeafletMap({
     if (!showTobacco) return;
 
     const level = map.getLevel();
-    const isDotMode = level >= 8; /* 광역 보기: 점만 표시 */
+    const isDistrictMode = level >= DISTRICT_MODE_LEVEL; /* 광역 보기: 구/시 단위 집계 버블 */
     const vp = getViewportBounds(map);
     const visibleShops = tobaccoShops.filter(s => inBounds(s.lat, s.lng, vp));
 
-    /* ── 점 모드: 작은 색상 사각형만 렌더 (이벤트 없음) ── */
-    if (isDotMode) {
+    /* ── 구/시 단위 집계 버블 모드 ── */
+    if (isDistrictMode) {
+      type DistrictEntry = { shops: TobaccoShop[]; region: "seoul" | "gyeonggi" };
+      const districtMap = new Map<string, DistrictEntry>();
+      const noAddrShops: TobaccoShop[] = [];
+
       visibleShops.forEach((shop) => {
+        const parsed = parseDistrict(shop.address ?? "");
+        if (!parsed) { noAddrShops.push(shop); return; }
+        if (!districtMap.has(parsed.name)) {
+          districtMap.set(parsed.name, { shops: [], region: parsed.region });
+        }
+        districtMap.get(parsed.name)!.shops.push(shop);
+      });
+
+      districtMap.forEach(({ shops, region }, districtName) => {
+        const centLat = shops.reduce((s, sh) => s + sh.lat, 0) / shops.length;
+        const centLng = shops.reduce((s, sh) => s + sh.lng, 0) / shops.length;
+        const bgColor = region === "seoul" ? "#2563EB" : "#059669";
+
+        const el = document.createElement("div");
+        el.innerHTML = `
+          <div style="
+            background:${bgColor};color:white;
+            border-radius:18px;padding:5px 12px;
+            font-size:12px;font-weight:700;
+            font-family:'Noto Sans KR',sans-serif;
+            box-shadow:0 2px 10px rgba(0,0,0,0.35);
+            white-space:nowrap;border:2px solid white;
+            cursor:pointer;line-height:1.4;
+            display:flex;align-items:center;gap:6px;
+          ">
+            <span>${districtName}</span>
+            <span style="
+              background:rgba(255,255,255,0.28);border-radius:10px;
+              padding:1px 7px;font-size:11px;font-weight:800;
+            ">${shops.length}</span>
+          </div>`;
+
+        el.querySelector("div")!.addEventListener("click", () => {
+          if (!mapRef.current) return;
+          mapRef.current.setCenter(new kakao.maps.LatLng(centLat, centLng));
+          mapRef.current.setLevel(5, { animate: { duration: 350 } });
+        });
+
+        const overlay = new kakao.maps.CustomOverlay({
+          position: new kakao.maps.LatLng(centLat, centLng),
+          content: el, map, zIndex: 5, xAnchor: 0.5, yAnchor: 0.5,
+        });
+        tobaccoLayersRef.current.push(overlay);
+      });
+
+      /* 주소 없는 매장: 작은 점으로 폴백 */
+      noAddrShops.forEach((shop) => {
         const zone = getTobaccoZone(shop, schoolsRef.current);
         const color = TOBACCO_ZONE_COLORS[zone];
         const dot = document.createElement("div");
         dot.style.cssText = `width:5px;height:5px;background:${color};border-radius:1px;border:1px solid rgba(255,255,255,0.8);pointer-events:none;`;
         const overlay = new kakao.maps.CustomOverlay({
           position: new kakao.maps.LatLng(shop.lat, shop.lng),
-          content: dot, map, zIndex: 5, xAnchor: 0.5, yAnchor: 0.5,
+          content: dot, map, zIndex: 4, xAnchor: 0.5, yAnchor: 0.5,
         });
         tobaccoLayersRef.current.push(overlay);
-        tobaccoOverlayMapRef.current.set(shop.id, overlay);
       });
+
       return;
     }
 
