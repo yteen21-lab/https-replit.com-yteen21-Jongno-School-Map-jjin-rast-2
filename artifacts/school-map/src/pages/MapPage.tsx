@@ -579,9 +579,15 @@ export default function MapPage() {
     });
   }, [tobaccoShops, searchTokens]);
 
+  /* 유치원을 제외한 학교 목록 — 구역 계산·통계에 사용 */
+  const nonKinderSchools = useMemo(
+    () => schools.filter((s) => (s.type as string) !== "유치원"),
+    [schools]
+  );
+
   const violationCount = useMemo(
-    () => tobaccoShops.filter((s) => getTobaccoZone(s, schools) !== "외부").length,
-    [tobaccoShops, schools]
+    () => tobaccoShops.filter((s) => getTobaccoZone(s, nonKinderSchools) !== "외부").length,
+    [tobaccoShops, nonKinderSchools]
   );
 
   const visibleTobaccoShops = useMemo(
@@ -1434,7 +1440,7 @@ export default function MapPage() {
             <ZoneShopPanel
               zone={activeZonePanel}
               tobaccoShops={tobaccoShops}
-              schools={schools.filter(s => (s.type as string) !== "유치원")}
+              schools={nonKinderSchools}
               onClose={() => setActiveZonePanel(null)}
               onSelectShop={(shop) => {
                 setSelectedTobaccoShop(shop);
@@ -1510,7 +1516,7 @@ export default function MapPage() {
             )}
 
             <Legend
-              schools={schools}
+              schools={nonKinderSchools}
               tobaccoShops={tobaccoShops}
               showRadius50={showRadius50}
               showRadius200={showRadius200}
@@ -1550,7 +1556,7 @@ export default function MapPage() {
             <ZoneShopPanel
               zone={activeZonePanel}
               tobaccoShops={tobaccoShops}
-              schools={schools.filter(s => (s.type as string) !== "유치원")}
+              schools={nonKinderSchools}
               onClose={() => setActiveZonePanel(null)}
               onSelectShop={(shop) => {
                 setSelectedTobaccoShop(shop);
