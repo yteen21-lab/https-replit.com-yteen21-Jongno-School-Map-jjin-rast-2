@@ -1434,7 +1434,7 @@ export default function MapPage() {
             <ZoneShopPanel
               zone={activeZonePanel}
               tobaccoShops={tobaccoShops}
-              schools={schools}
+              schools={schools.filter(s => (s.type as string) !== "유치원")}
               onClose={() => setActiveZonePanel(null)}
               onSelectShop={(shop) => {
                 setSelectedTobaccoShop(shop);
@@ -1550,7 +1550,7 @@ export default function MapPage() {
             <ZoneShopPanel
               zone={activeZonePanel}
               tobaccoShops={tobaccoShops}
-              schools={schools}
+              schools={schools.filter(s => (s.type as string) !== "유치원")}
               onClose={() => setActiveZonePanel(null)}
               onSelectShop={(shop) => {
                 setSelectedTobaccoShop(shop);
