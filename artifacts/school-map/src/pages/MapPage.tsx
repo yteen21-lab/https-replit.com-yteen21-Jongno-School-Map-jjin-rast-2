@@ -50,10 +50,12 @@ function clearStorage(...keys: string[]): void {
   try { keys.forEach((k) => localStorage.removeItem(k)); } catch {}
 }
 
-/** 앱 최초 로드 시 구 샘플 데이터(s1~s104) 제거 + 중복 제거 후 저장 */
+/** 앱 최초 로드 시 구 샘플 데이터(s1~s104) 제거 + 유치원 제거 + 중복 제거 후 저장 */
 function migrateSampleSchools(): School[] {
   const raw = loadFromStorage<School[]>(STORAGE_KEY_SCHOOLS, []);
-  const withoutSamples = raw.filter((s) => !/^s\d+$/.test(s.id));
+  const withoutSamples = raw
+    .filter((s) => !/^s\d+$/.test(s.id))
+    .filter((s) => (s.type as string) !== "유치원");
   const accepted: School[] = [];
   for (const s of withoutSamples) {
     if (!isSchoolDup(s, accepted)) accepted.push(s);
