@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "USvq8UApasnjkW04nNqCV"
+uri = "file://school-map-site.tar.gz"
+type = "unspecified"
+title = "액상형 전자담배 매장 지도 - 빌드 파일"
