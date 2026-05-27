@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from "react";
+import * as XLSX from "xlsx";
 import {
   X, BarChart2, Database, Layers, Users, Link2,
   Check, Download, RefreshCw, Save, Trash2, Plus,
@@ -47,15 +48,16 @@ function getTobaccoZone(t: TobaccoShop, schools: School[]): TobaccoZone {
   return "외부";
 }
 
-/* ── CSV 내보내기 ──────────────────────────────────── */
-function exportCSV(filename: string, headers: string[], rows: (string | number | undefined)[][]): void {
-  const esc = (v: string | number | undefined) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  const csv = [headers, ...rows].map(r => r.map(esc).join(",")).join("\r\n");
-  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = filename; a.click();
-  URL.revokeObjectURL(url);
+/* ── 엑셀(XLSX) 내보내기 ──────────────────────────── */
+function exportXLSX(filename: string, headers: string[], rows: (string | number | undefined)[][]): void {
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  /* 열 너비 자동 설정 */
+  ws["!cols"] = headers.map((h, i) => ({
+    wch: Math.max(h.length + 2, ...rows.map(r => String(r[i] ?? "").length)) + 2,
+  }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "데이터");
+  XLSX.writeFile(wb, filename);
 }
 
 /* ── 구 추출 ──────────────────────────────────────── */
@@ -455,24 +457,24 @@ export default function AdminDashboard({ schools, tobaccoShops, token, onClose, 
               <Section title="CSV 내보내기">
                 <div className="flex gap-2">
                   <button
-                    onClick={() => exportCSV(`schools_${today()}.csv`,
-                      ["id","이름","유형","위도","경도","구역","부지반경(m)"],
-                      schools.map(s => [s.id, s.name, s.type, s.lat, s.lng, s.district ?? "", s.propertyRadius ?? ""])
+                    onClick={() => exportXLSX(`schools_${today()}.xlsx`,
+                      ["이름","유형","위도","경도","구역"],
+                      schools.map(s => [s.name, s.type, s.lat, s.lng, s.district ?? ""])
                     )}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 text-xs font-semibold transition-colors"
                   >
                     <Download className="w-3.5 h-3.5" />
-                    학교 CSV ({schools.length}개)
+                    학교 엑셀 ({schools.length}개)
                   </button>
                   <button
-                    onClick={() => exportCSV(`tobacco_${today()}.csv`,
-                      ["id","이름","위도","경도","주소","유형"],
-                      tobaccoShops.map(t => [t.id, t.name, t.lat, t.lng, t.address ?? "", t.shopType ?? ""])
+                    onClick={() => exportXLSX(`tobacco_${today()}.xlsx`,
+                      ["이름","위도","경도","주소","유형"],
+                      tobaccoShops.map(t => [t.name, t.lat, t.lng, t.address ?? "", t.shopType ?? ""])
                     )}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 text-xs font-semibold transition-colors"
                   >
                     <Download className="w-3.5 h-3.5" />
-                    담배샵 CSV ({tobaccoShops.length}개)
+                    담배샵 엑셀 ({tobaccoShops.length}개)
                   </button>
                 </div>
               </Section>
