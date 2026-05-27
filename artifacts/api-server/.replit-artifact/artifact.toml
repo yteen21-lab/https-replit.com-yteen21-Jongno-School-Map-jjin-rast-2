@@ -30,3 +30,7 @@ NODE_ENV = "production"
 
 [services.production.health.startup]
 path = "/api/healthz"
+
+[deploy]
+deploymentTarget = "autoscale"
+minInstances = 1
