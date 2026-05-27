@@ -1,0 +1,109 @@
+{
+  "colorScheme": "light",
+  "fonts": [
+    {
+      "family": "Noto Sans KR",
+      "role": "body"
+    },
+    {
+      "family": "Inter",
+      "role": "unknown"
+    }
+  ],
+  "colors": {
+    "primary": "#90A1B9",
+    "secondary": "#DBE2EB",
+    "accent": "#314158",
+    "background": "#F8FAFC",
+    "textPrimary": "#314158",
+    "link": "#314158"
+  },
+  "typography": {
+    "fontFamilies": {
+      "primary": "Noto Sans KR",
+      "heading": "Noto Sans KR"
+    },
+    "fontStacks": {
+      "heading": [
+        "Noto Sans KR",
+        "sans-serif"
+      ],
+      "body": [
+        "Noto Sans KR",
+        "Inter",
+        "sans-serif"
+      ],
+      "paragraph": [
+        "Noto Sans KR",
+        "sans-serif"
+      ]
+    },
+    "fontSizes": {
+      "h1": "12px",
+      "h2": "12px",
+      "body": "9px"
+    }
+  },
+  "spacing": {
+    "baseUnit": 4,
+    "borderRadius": "6px"
+  },
+  "components": {
+    "input": {
+      "background": "#F8FAFC",
+      "textColor": "#0F1729",
+      "borderColor": "#E2E8F0",
+      "borderRadius": "8px",
+      "borderRadiusCorners": {
+        "topLeft": "8px",
+        "topRight": "8px",
+        "bottomRight": "8px",
+        "bottomLeft": "8px"
+      },
+      "shadow": "none"
+    }
+  },
+  "images": {
+    "logo": null,
+    "favicon": "https://jongno-school-map--yteen21.replit.app/favicon.svg",
+    "ogImage": "/opengraph.jpg"
+  },
+  "__llm_button_reasoning": {
+    "primary": {
+      "index": -1,
+      "text": "N/A",
+      "reasoning": "All buttons have a transparent background and similar styling, making it difficult to identify a primary CTA based on color or text."
+    },
+    "secondary": {
+      "index": -1,
+      "text": "N/A",
+      "reasoning": "Since no primary button is identified, a secondary button cannot be selected."
+    },
+    "confidence": 0.5
+  },
+  "personality": {
+    "tone": "minimalist",
+    "energy": "low",
+    "targetAudience": "unknown"
+  },
+  "designSystem": {
+    "framework": "tailwind",
+    "componentLibrary": ""
+  },
+  "confidence": {
+    "buttons": 0.5,
+    "colors": 0.9,
+    "overall": 0.7
+  },
+  "__llm_metadata": {
+    "logoSelection": {
+      "llmCalled": false,
+      "llmSucceeded": false,
+      "finalSource": "none"
+    },
+    "buttonClassification": {
+      "llmCalled": true,
+      "llmSucceeded": true
+    }
+  }
+}
