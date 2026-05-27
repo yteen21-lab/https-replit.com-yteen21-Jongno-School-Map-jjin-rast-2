@@ -938,7 +938,7 @@ export default function MapPage() {
             <div className="w-10 h-1 bg-slate-300 rounded-full mb-1" />
             <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
               <SchoolIcon className="w-3.5 h-3.5 text-green-600" />
-              www.전자담배·매장지도.com.kr
+              www.전자담배매장지도.co.kr
               {violationCount > 0 && (
                 <span className="bg-red-50 text-red-600 border border-red-200 text-[10px] px-1.5 py-0.5 rounded-full font-semibold">
                   ⚠ {violationCount}곳
@@ -955,7 +955,7 @@ export default function MapPage() {
               <div className="px-3 py-3 border-b border-slate-100">
                 <div className="flex items-center gap-1.5 mb-0.5">
                   <SchoolIcon className="h-4 w-4 text-green-600 flex-shrink-0" />
-                  <h1 className="text-xs font-bold text-slate-800 leading-tight whitespace-nowrap">www.전자담배·매장지도.com.kr</h1>
+                  <h1 className="text-xs font-bold text-slate-800 leading-tight whitespace-nowrap">www.전자담배매장지도.co.kr</h1>
                 </div>
                 <p className="text-[9px] text-slate-400">서울시 및 경기 · 초, 중, 고</p>
                 {violationCount > 0 && (
