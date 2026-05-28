@@ -18,6 +18,7 @@ export interface TobaccoShop {
   lng: number;
   address?: string;
   shopType?: "무인" | "유인";
+  zone?: TobaccoZone; // 서버에서 미리 계산된 구역 값
 }
 
 export interface CircleConfig {
@@ -219,6 +220,8 @@ export function haversineDistance(lat1: number, lng1: number, lat2: number, lng2
 }
 
 export function getTobaccoZone(shop: TobaccoShop, schools: School[]): TobaccoZone {
+  // 서버에서 미리 계산된 값이 있으면 바로 반환 (브라우저 계산 생략)
+  if (shop.zone) return shop.zone;
   // 부지 경계까지의 거리 = 중심까지 거리 - 부지 반경 (최소 0)
   const minDist = Math.min(...schools.map((s) => {
     const d = haversineDistance(shop.lat, shop.lng, s.lat, s.lng);

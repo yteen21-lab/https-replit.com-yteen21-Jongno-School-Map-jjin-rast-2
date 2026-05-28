@@ -104,6 +104,31 @@ function deduplicateTobacco(tobacco: unknown[]): unknown[] {
   });
 }
 
+/* ── 서버사이드 구역 미리 계산 ─────────────────────────── */
+function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const φ1 = lat1 * Math.PI / 180, φ2 = lat2 * Math.PI / 180;
+  const Δφ = (lat2 - lat1) * Math.PI / 180, Δλ = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function attachZones(data: SharedData): SharedData {
+  const schools = data.schools as SchoolRecord[];
+  const tobacco = (data.tobacco as TobaccoRecord[]).map((sh) => {
+    let minDist = Infinity;
+    for (const s of schools) {
+      if (s.type === "유치원") continue; // 유치원 제외
+      const d = haversine(sh.lat ?? 0, sh.lng ?? 0, s.lat ?? 0, s.lng ?? 0);
+      const edge = Math.max(0, d - ((s.propertyRadius as number | undefined) ?? 0));
+      if (edge < minDist) minDist = edge;
+    }
+    const zone = minDist <= 50 ? "50m이내" : minDist <= 200 ? "200m이내" : "외부";
+    return { ...sh, zone };
+  });
+  return { ...data, tobacco };
+}
+
 /* ── 메모리 캐시 (24시간 TTL — 쓰기 시 즉시 갱신되므로 길게 설정) ── */
 const CACHE_TTL = 24 * 60 * 60_000;
 interface CacheEntry { data: SharedData; json: string; etag: string; fetchedAt: number; }
@@ -116,9 +141,10 @@ function getCached(): CacheEntry | null {
 }
 
 function setCache(data: SharedData): CacheEntry {
-  const json = JSON.stringify(data);
+  const withZones = attachZones(data);
+  const json = JSON.stringify(withZones);
   const etag = `"${createHash("sha1").update(json).digest("hex").slice(0, 16)}"`;
-  cache = { data, json, etag, fetchedAt: Date.now() };
+  cache = { data: withZones, json, etag, fetchedAt: Date.now() };
   return cache;
 }
 
